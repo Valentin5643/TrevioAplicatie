@@ -1,67 +1,67 @@
-# Aplicatia Mea
+# Aplicația Mea
 
-A modern Android application built with love and care. This project aims to provide a seamless and engaging user experience while demonstrating best practices in Android development.
+O aplicație Android modernă creată cu pasiune și atenție la detalii. Acest proiect își propune să ofere o experiență de utilizare captivantă, demonstrând cele mai bune practici în dezvoltarea Android. Aplicația permite utilizatorilor să gestioneze și să organizeze diverse activități zilnice, oferind o interfață intuitivă și prietenoasă.
 
-## Getting Started
+## Cum să Începi
 
-To get started with this project, follow these simple steps:
+Pentru a începe cu acest proiect, urmează acești pași simpli:
 
-### Prerequisites
+### Cerințe Preliminare
 
-- Android Studio (latest version recommended)
+- Android Studio (ultima versiune recomandată)
 - Android SDK
-- JDK 11 or higher
+- JDK 11 sau mai recent
 
-### Installation
+### Instalare
 
-1. Clone the repository:
+1. Clonează repository-ul:
 ```bash
 git clone https://github.com/Valentin5643/TrevioAplicatie.git
 ```
 
-2. Open Android Studio and select "Open an existing Android Studio project"
+2. Deschide Android Studio și selectează "Open an existing Android Studio project"
 
-3. Navigate to the cloned directory and click "OK"
+3. Navighează către directorul clonat și apasă "OK"
 
-4. Let Android Studio sync the project with Gradle files
+4. Lasă Android Studio să sincronizeze fișierele Gradle
 
-## Building the Project
+## Compilarea Proiectului
 
-You can build the project in two ways:
+Poți compila proiectul în două moduri:
 
-### Using Android Studio
+### Folosind Android Studio
 
-1. Open Android Studio
-2. Select `Build > Make Project`
-3. Wait for the build to complete
+1. Deschide Android Studio
+2. Selectează `Build > Make Project`
+3. Așteaptă finalizarea compilării
 
-### Using Command Line
+### Folosind Linia de Comandă
 
-Navigate to the project directory in your terminal and run:
+Navighează în directorul proiectului în terminal și rulează:
 ```bash
 ./gradlew clean build
 ```
 
-## Project Structure
+## Structura Proiectului
 
-The project follows a standard Android application structure:
-- `app/src/main/java` - Contains all the Java source code
-- `app/src/main/res` - Contains all resources (layouts, drawables, etc.)
-- `app/src/main/assets` - Contains static assets
+Proiectul urmează o structură standard pentru aplicații Android:
+- `app/src/main/java` - Conține tot codul sursă Java
+- `app/src/main/res` - Conține toate resursele (layouturi, imagini, etc.)
+- `app/src/main/assets` - Conține fișierele statice
 
-## Contributing
+## Cum să Contribui
 
-Interested in contributing? Great! Here's how you can help:
+Vrei să contribui? Minunat! Iată cum poți ajuta:
 
-1. Fork the repository
-2. Create a new branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Commit your changes (`git commit -m 'Add some amazing feature'`)
-5. Push to the branch (`git push origin feature/amazing-feature`)
-6. Open a Pull Request
+1. Fork la repository
+2. Creează un branch nou (`git checkout -b feature/functionalitate-noua`)
+3. Fă modificările dorite
+4. Commit la modificări (`git commit -m 'Adaugă o funcționalitate nouă'`)
+5. Push la branch (`git push origin feature/functionalitate-noua`)
+6. Deschide un Pull Request
 
 ## Contact
 
 Valentin - [@Valentin5643](https://github.com/Valentin5643)
 
-Project Link: [https://github.com/Valentin5643/TrevioAplicatie](https://github.com/Valentin5643/TrevioAplicatie)
+Link Proiect: [https://github.com/Valentin5643/TrevioAplicatie](https://github.com/Valentin5643/TrevioAplicatie)
