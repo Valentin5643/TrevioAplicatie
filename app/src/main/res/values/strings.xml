@@ -1,0 +1,11 @@
+<resources>
+    <string name="Trevio">Trevio</string>
+    <string name="delete_task">Delete</string>
+    <string name="previous">Prev</string>
+    <string name="next">Next</string>
+    <string name="app_name">Trevio</string>
+    <string name="create_task">Create Task</string>
+    <string name="view_tasks">View Tasks</string>
+    <string name="adventure_hub">Quest Center</string>
+    <string name="logout">Logout</string>
+</resources>

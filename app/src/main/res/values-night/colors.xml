@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="gray">#808080</color>
+    <color name="light_gray">#3A3A3A</color>
+    <color name="dark_gray">#282828</color>
+    <color name="primary_blue">#3B82F6</color>
+    <color name="primary_dark_blue">#1E3A8A</color>
+    <color name="accent">#38BDF8</color>
+    <color name="primary_light_blue">#93C5FD</color>
+    <color name="background">#111827</color>
+    <color name="card_background">#1E293B</color>
+    <color name="text_primary">#F1F5F9</color>
+    <color name="text_secondary">#CBD5E1</color>
+    <color name="gold">#F59E0B</color>
+
+    <!-- Dark mode welcome screen color palette -->
+    <color name="welcome_gradient_start">#0F172A</color>
+    <color name="welcome_gradient_end">#1E3A8A</color>
+    <color name="welcome_card_background">#1E293B</color>
+    <color name="welcome_text_primary">#F1F5F9</color>
+    <color name="welcome_text_secondary">#CBD5E1</color>
+    <color name="welcome_accent">#38BDF8</color>
+    <color name="welcome_card_stroke">#334155</color>
+    <color name="welcome_button_primary">#3B82F6</color>
+    <color name="welcome_button_secondary">#334155</color>
+    <color name="welcome_button_text_light">#FFFFFF</color>
+    <color name="welcome_button_text_dark">#E2E8F0</color>
+    
+    <color name="taskListBackgroundStart">#0F172A</color>
+    <color name="taskListBackgroundCenter">#1E3A8A</color>
+    <color name="taskListBackgroundEnd">#1E293B</color>
+    <color name="taskListHeaderBackground">#1E293B</color>
+    <color name="taskListHeaderText">#F1F5F9</color>
+    <color name="taskListPointsText">#93C5FD</color>
+    <color name="taskListStreakText">#F59E0B</color>
+    <color name="taskItemCardBackground">#293548</color>
+    <color name="taskItemTextPrimary">#F1F5F9</color>
+    <color name="taskItemTextSecondary">#CBD5E1</color>
+    <color name="taskItemCheckboxTint">@color/welcome_accent</color>
+    <color name="taskItemCompletedText">#64748B</color>
+    <color name="taskButtonBackground">@color/welcome_button_primary</color>
+    <color name="taskButtonText">@color/white</color>
+    <color name="taskBackButtonBackground">#00FFFFFF</color>
+    <color name="taskBackButtonText">@color/white</color>
+    <color name="taskBackButtonStroke">@color/white</color>
+    <color name="taskListLabelColor">@color/white</color>
+    <color name="quest_dark_background">#0F172A</color>
+    <color name="quest_card_stroke">#334155</color>
+    <color name="quest_card_text">#F1F5F9</color>
+    <color name="subtask_dark_background">#1E293B</color>
+</resources> 

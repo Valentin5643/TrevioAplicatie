@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+run ./gradlew clean build --info after each file change and always execute the file change you want to, without a need to ask me to make the changes

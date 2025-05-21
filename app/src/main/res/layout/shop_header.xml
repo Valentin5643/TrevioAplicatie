@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/shopHeader"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp"
+    android:background="@android:color/transparent">
+
+    <!-- Avatar placeholder -->
+    <FrameLayout
+        android:id="@+id/flAvatarContainer"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Base character sprite -->
+        <ImageView
+            android:id="@+id/ivAvatarBase"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:adjustViewBounds="true"
+            android:contentDescription="Avatar Placeholder"
+            android:src="@drawable/avatar_placeholder" />
+
+        <!-- Helmet overlay -->
+        <ImageView
+            android:id="@+id/ivAvatarHelmet"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="Helmet Overlay"
+            android:visibility="gone"
+            android:scaleType="centerCrop" />
+
+        <!-- Chestplate overlay -->
+        <ImageView
+            android:id="@+id/ivAvatarChestplate"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="Chestplate Overlay"
+            android:visibility="gone"
+            android:scaleType="centerCrop" />
+
+        <!-- Greaves overlay -->
+        <ImageView
+            android:id="@+id/ivAvatarGreaves"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="Greaves Overlay"
+            android:visibility="gone"
+            android:scaleType="centerCrop" />
+
+        <!-- Boots overlay -->
+        <ImageView
+            android:id="@+id/ivAvatarBoots"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="Boots Overlay"
+            android:visibility="gone"
+            android:scaleType="centerCrop" />
+
+        <!-- Weapon overlay -->
+        <ImageView
+            android:id="@+id/ivAvatarWeapon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="Weapon Overlay"
+            android:visibility="gone"
+            android:scaleType="centerCrop" />
+
+        <!-- Hair overlay (if used) -->
+        <ImageView
+            android:id="@+id/ivAvatarHair"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="Hair Overlay"
+            android:visibility="gone"
+            android:scaleType="centerCrop" />
+    </FrameLayout>
+
+    <!-- Inventory label -->
+    <TextView
+        android:id="@+id/tvInventoryLabel"
+        style="@style/TrevioText.Subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Inventory"
+        android:textColor="@color/quest_card_text"
+        android:textSize="16sp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toEndOf="@id/flAvatarContainer"
+        android:layout_marginStart="24dp" />
+
+    <!-- Inventory items horizontal list -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewInventory"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        app:layout_constraintTop_toBottomOf="@id/tvInventoryLabel"
+        app:layout_constraintStart_toStartOf="@id/tvInventoryLabel"
+        android:orientation="horizontal" />
+
+    <!-- Equipment slots row: Helmet, Chestplate, Greaves, Boots, Weapon -->
+    <LinearLayout
+        android:id="@+id/llEquipmentSlots"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/recyclerViewInventory"
+        app:layout_constraintStart_toEndOf="@id/flAvatarContainer">
+
+        <ImageView
+            android:id="@+id/ivSlotHelmet"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:contentDescription="Helmet Slot"
+            android:src="@drawable/placeholder_helmet" />
+        <ImageView
+            android:id="@+id/ivSlotChestplate"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:contentDescription="Chestplate Slot"
+            android:src="@drawable/placeholder_chestplate"
+            android:layout_marginStart="4dp" />
+        <ImageView
+            android:id="@+id/ivSlotGreaves"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:contentDescription="Greaves Slot"
+            android:src="@drawable/placeholder_greaves"
+            android:layout_marginStart="4dp" />
+        <ImageView
+            android:id="@+id/ivSlotBoots"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:contentDescription="Boots Slot"
+            android:src="@drawable/placeholder_boots"
+            android:layout_marginStart="4dp" />
+
+        <ImageView
+            android:id="@+id/ivSlotWeapon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="Weapon Slot"
+            android:src="@drawable/equip_weapon" />
+    </LinearLayout>
+
+    <!-- Support items RecyclerView (max 3) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewSupportInventory"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/llEquipmentSlots"
+        app:layout_constraintStart_toEndOf="@id/flAvatarContainer"
+        android:layout_marginStart="24dp" />
+
+</androidx.constraintlayout.widget.ConstraintLayout> 

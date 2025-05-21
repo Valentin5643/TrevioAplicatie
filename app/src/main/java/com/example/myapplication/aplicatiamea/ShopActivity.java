@@ -1,0 +1,1010 @@
+package com.example.myapplication.aplicatiamea;
+
+import android.annotation.SuppressLint;
+import android.os.Bundle;
+import android.app.Activity;
+import android.widget.Button;
+import android.widget.TextView;
+import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.DocumentSnapshot;
+import java.util.ArrayList;
+import java.util.List;
+import android.widget.ImageView;
+
+import com.google.firebase.firestore.DocumentReference;
+import java.util.Map;
+import java.util.HashMap;
+import android.view.View;
+import java.lang.reflect.Field;
+import java.util.Random;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import android.widget.Toast;
+import com.google.firebase.auth.FirebaseUser;
+import androidx.annotation.NonNull;
+import android.graphics.Rect;
+import com.google.android.gms.common.GoogleApiAvailability;
+import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
+import com.google.android.gms.common.GooglePlayServicesRepairableException;
+import com.google.android.gms.security.ProviderInstaller;
+import android.content.Context;
+import android.util.Log;
+import java.util.Collections;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.graphics.Insets;
+
+public class ShopActivity extends Activity {
+    private static final String TAG = "ShopActivity";
+    
+    private Button buttonBackShop;
+    private TextView tvGoldCoins;
+    private RecyclerView recyclerViewAllItems;
+    private List<ShopItem> items = new ArrayList<>();
+    private Map<String, ShopItem> itemCatalog = new HashMap<>();
+    private ShopAdapter adapter;
+    private ImageView ivSlotChestplate;
+    private FirebaseFirestore db;
+    private FirebaseAuth auth;
+    private ImageView ivAvatarBase;
+    private ImageView ivAvatarChestplate;
+    private ImageView ivAvatarWeapon;
+    private ImageView ivSlotWeapon;
+    private ImageView ivSlotHelmet;
+    private ImageView ivAvatarHelmet;
+    private ImageView ivSlotGreaves;
+    private ImageView ivAvatarGreaves;
+    private ImageView ivSlotBoots;
+    private ImageView ivAvatarBoots;
+    private DocumentReference userRef;
+    // Track the last date the shop was generated to reset daily
+    private String lastShopDate;
+    private boolean shopDateLoaded = false;
+    private boolean pendingResume = false;
+    private List<ShopItem> currentShopList = null; // Cache the generated shop list
+
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false); // Enable edge-to-edge
+        setContentView(R.layout.activity_shop);
+
+        View rootLayout = findViewById(R.id.rootLayoutShop);
+        View contentArea = findViewById(R.id.contentAreaShop); // Target content area
+
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, windowInsets) -> {
+            Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            // Apply padding to the content area
+            contentArea.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+            return WindowInsetsCompat.CONSUMED;
+        });
+        
+        // Fix for Google Play Services security exception
+        try {
+            ProviderInstaller.installIfNeeded(this);
+        } catch (GooglePlayServicesRepairableException e) {
+            // Prompt the user to install/update/enable Google Play services
+            GoogleApiAvailability.getInstance()
+                    .showErrorNotification(this, e.getConnectionStatusCode());
+        } catch (GooglePlayServicesNotAvailableException e) {
+            // Handle the exception
+            Toast.makeText(this, "Google Play Services not available", Toast.LENGTH_SHORT).show();
+        }
+        
+        // Initialize views
+        tvGoldCoins = findViewById(R.id.tvGoldCoins);
+        recyclerViewAllItems = findViewById(R.id.recyclerViewAllItems);
+        ivAvatarBase = findViewById(R.id.ivAvatarBase);
+        ivAvatarChestplate = findViewById(R.id.ivAvatarChestplate);
+        ivAvatarWeapon = findViewById(R.id.ivAvatarWeapon);
+        ivSlotChestplate = findViewById(R.id.ivSlotChestplate);
+        ivSlotWeapon = findViewById(R.id.ivSlotWeapon);
+        buttonBackShop = findViewById(R.id.buttonBackShop);
+        ivSlotHelmet = findViewById(R.id.ivSlotHelmet);
+        ivAvatarHelmet = findViewById(R.id.ivAvatarHelmet);
+        ivSlotGreaves = findViewById(R.id.ivSlotGreaves);
+        ivAvatarGreaves = findViewById(R.id.ivAvatarGreaves);
+        ivSlotBoots = findViewById(R.id.ivSlotBoots);
+        ivAvatarBoots = findViewById(R.id.ivAvatarBoots);
+        
+        // Set up back button
+        buttonBackShop.setOnClickListener(v -> finish());
+
+        // Initialize Firebase
+        db = FirebaseFirestore.getInstance();
+        auth = FirebaseAuth.getInstance();
+        FirebaseUser currentUser = auth.getCurrentUser();
+
+        if (currentUser == null) {
+            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        // Initialize items list and catalog
+        initializeItems();
+
+        // Initialize user reference
+        userRef = db.collection("users").document(currentUser.getUid());
+        
+        // Initialize adapter with empty list
+        adapter = new ShopAdapter(this, new ArrayList<>(), userRef);
+        
+        // Set up RecyclerView
+        recyclerViewAllItems.setLayoutManager(new LinearLayoutManager(this));
+        recyclerViewAllItems.setAdapter(adapter);
+        
+        // Add decoration for spacing between items
+        recyclerViewAllItems.addItemDecoration(new RecyclerView.ItemDecoration() {
+            @Override
+            public void getItemOffsets(@NonNull Rect outRect, @NonNull View view, 
+                                      @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
+                outRect.bottom = 8; // Add some space between items
+            }
+        });
+
+        // Initialize default placeholder images
+        ivSlotWeapon.setImageResource(R.drawable.placeholder_weapon);
+        ivSlotChestplate.setImageResource(R.drawable.placeholder_chestplate);
+
+        // Set up click listeners for equipment slots to unequip items
+        setupEquipmentSlotClickListeners();
+        
+        // Load user data (initial load and listener setup)
+        loadInitialUserDataAndSetupListener();
+
+        // Load lastShopDate from Firestore
+        userRef.get().addOnSuccessListener(documentSnapshot -> {
+            if (documentSnapshot.exists() && documentSnapshot.contains("lastShopDate")) {
+                lastShopDate = documentSnapshot.getString("lastShopDate");
+            } else {
+                lastShopDate = null;
+            }
+            shopDateLoaded = true;
+            if (pendingResume) {
+                pendingResume = false;
+                checkShopReset(); // This might trigger recreate() if date changed
+            } else {
+                 // If not resuming and date is current, ensure shop list is generated if needed
+                 if (currentShopList == null) {
+                    generateDailyShopAndInventory(documentSnapshot);
+                 }
+            }
+        }).addOnFailureListener(e -> {
+            lastShopDate = null;
+            shopDateLoaded = true;
+            if (pendingResume) {
+                pendingResume = false;
+                checkShopReset();
+            }
+        });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (!shopDateLoaded) {
+            pendingResume = true;
+            return;
+        }
+        checkShopReset();
+    }
+
+    private void checkShopReset() {
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+        if (!today.equals(lastShopDate)) {
+            lastShopDate = today;
+            // Update Firestore with new shop date
+            if (userRef != null) {
+                userRef.update("lastShopDate", today);
+                // Reset boughtShopItems for the new day
+                userRef.update("boughtShopItems", new ArrayList<String>());
+            }
+            recreate(); // Recreate only if date has changed
+        } else {
+            // If the date hasn't changed, just get the latest user data
+            // without regenerating the shop items
+            userRef.get().addOnSuccessListener(documentSnapshot -> {
+                if (documentSnapshot.exists()) {
+                    // Only update inventory and equipment, don't regenerate shop
+                    updateInventoryAndEquipment(documentSnapshot);
+                }
+            }).addOnFailureListener(e -> Log.e(TAG, "Failed to get user data: " + e.getMessage()));
+        }
+    }
+
+    private void setupEquipmentSlotClickListeners() {
+        // Click listener for chestplate slot
+        ivSlotChestplate.setOnClickListener(v -> {
+            if (ivAvatarChestplate.getVisibility() == View.VISIBLE) {
+                unequipItem("armor");
+            }
+        });
+        // Click listener for weapon slot
+        ivSlotWeapon.setOnClickListener(v -> {
+            if (ivAvatarWeapon.getVisibility() == View.VISIBLE) {
+                unequipItem("weapon");
+            }
+        });
+        // Click listener for helmet slot
+        ivSlotHelmet.setOnClickListener(v -> {
+            if (ivAvatarHelmet.getVisibility() == View.VISIBLE) {
+                unequipItem("helmet");
+            }
+        });
+        // Click listener for greaves slot
+        ivSlotGreaves.setOnClickListener(v -> {
+            if (ivAvatarGreaves.getVisibility() == View.VISIBLE) {
+                unequipItem("greaves");
+            }
+        });
+        // Click listener for boots slot
+        ivSlotBoots.setOnClickListener(v -> {
+            if (ivAvatarBoots.getVisibility() == View.VISIBLE) {
+                unequipItem("boots");
+            }
+        });
+    }
+
+    private void unequipItem(String slot) {
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser == null) return;
+
+        userRef.get().addOnSuccessListener(documentSnapshot -> {
+            if (documentSnapshot.exists()) {
+                Map<String, Object> equipped = (Map<String, Object>) documentSnapshot.get("equipped");
+                if (equipped != null && equipped.containsKey(slot)) {
+                    // Remove slot and update
+                    equipped.remove(slot);
+                    userRef.update("equipped", equipped)
+                        .addOnSuccessListener(aVoid -> {
+                            Toast.makeText(this, "Item unequipped", Toast.LENGTH_SHORT).show();
+                            // Reload data using the existing listener which will use itemCatalog
+                            // loadUserData(userRef, null, ivAvatarBase, ivAvatarChestplate, ivAvatarWeapon); // No explicit reload needed due to listener
+                        })
+                        .addOnFailureListener(e -> Toast.makeText(this, "Failed to unequip item", Toast.LENGTH_SHORT).show());
+                }
+            }
+        });
+    }
+
+    private void initializeItems() {
+        items = new ArrayList<>();
+        itemCatalog = new HashMap<>(); 
+        ShopItem newItem;
+
+        try {
+            // Dynamic item loading
+            Context context = ShopActivity.this;
+            Field[] drawableFields = R.drawable.class.getFields();
+            String packageName = context.getPackageName();
+            
+            // --- Process Weapons ---
+            List<String> weaponIds = new ArrayList<>();
+            for (Field field : drawableFields) {
+                String fieldName = field.getName();
+                if (fieldName.startsWith("weapon_")) {
+                    int resId = context.getResources().getIdentifier(fieldName, "drawable", packageName);
+                    if (resId != 0) {
+                        weaponIds.add(fieldName);
+                    } else {
+                        Log.w(TAG, "Drawable resource missing for potential item: " + fieldName + ", skipping.");
+                    }
+                }
+            }
+            Collections.sort(weaponIds);
+            int totalWeapons = weaponIds.size();
+            // More strict distribution - increase higher level weapons
+            int level1Weapons = (int) (totalWeapons * 0.4); // 40% at level 1 (down from 70%)
+            int level2Weapons = (int) (totalWeapons * 0.25); // 25% at level 2 (up from 15%)
+            int level3Weapons = (int) (totalWeapons * 0.2); // 20% at level 3 (up from 10%)
+            int level4Weapons = (int) (totalWeapons * 0.1); // 10% at level 4 (up from 3%)
+            // Ensure non-negative
+            int weaponCounter = 0;
+            int baseWeaponPrice = 100;
+            for (String weaponId : weaponIds) { // Iterate only over existing drawable IDs
+                // (Level/Tier/Price calculation)
+                 int level; String tier;
+                 if (weaponCounter < level1Weapons) { level = 1; tier = "Basic"; } 
+                 else if (weaponCounter < level1Weapons + level2Weapons) { level = 2; tier = "Improved"; }
+                 else if (weaponCounter < level1Weapons + level2Weapons + level3Weapons) { level = 3; tier = "Advanced"; }
+                 else if (weaponCounter < level1Weapons + level2Weapons + level3Weapons + level4Weapons) { level = 4; tier = "Superior"; }
+                 else { level = 5; tier = "Legendary"; }
+                 String displayName = "Weapon " + weaponId.replaceAll("weapon_", "");
+                 int price = baseWeaponPrice + (level * 30) + (weaponCounter * 5);
+                newItem = new ShopItem(weaponId, displayName, price, level, 1, "", tier + " weapon gear.", "weapon");
+                itemCatalog.put(newItem.getId(), newItem);
+                weaponCounter++;
+            }
+
+            // --- Process Armor (Chestplates) ---
+            List<String> armorIds = new ArrayList<>();
+            for (Field field : drawableFields) {
+                String fieldName = field.getName();
+                if (fieldName.startsWith("chestplate_")) { 
+                    int resId = context.getResources().getIdentifier(fieldName, "drawable", packageName);
+                    if (resId != 0) {
+                        armorIds.add(fieldName);
+                    } else {
+                        Log.w(TAG, "Drawable resource missing for potential item: " + fieldName + ", skipping.");
+                    }
+                }
+            }
+            Collections.sort(armorIds);
+             // (Armor level/tier/price calculation remains the same)
+             int totalArmors = armorIds.size(); // Recalculate
+             // More strict distribution - increase higher level armors
+             int level1Armors = (int) (totalArmors * 0.4); // 40% at level 1 (down from 70%)
+             int level2Armors = (int) (totalArmors * 0.25); // 25% at level 2 (up from 15%)
+             int level3Armors = (int) (totalArmors * 0.2); // 20% at level 3 (up from 10%)
+             int level4Armors = (int) (totalArmors * 0.1); // 10% at level 4 (up from 3%)
+            // Ensure non-negative
+            int armorCounter = 0;
+            int baseArmorPrice = 120;
+            for (String armorId : armorIds) {
+                 // (Level/Tier/Price calculation)
+                 int level; String tier;
+                 if (armorCounter < level1Armors) { level = 1; tier = "Basic"; }
+                 else if (armorCounter < level1Armors + level2Armors) { level = 2; tier = "Improved"; }
+                 else if (armorCounter < level1Armors + level2Armors + level3Armors) { level = 3; tier = "Advanced"; }
+                 else if (armorCounter < level1Armors + level2Armors + level3Armors + level4Armors) { level = 4; tier = "Superior"; }
+                 else { level = 5; tier = "Legendary"; }
+                 String displayName = "Chestplate " + armorId.replaceAll("chestplate_", "");
+                 int price = baseArmorPrice + (level * 35) + (armorCounter * 7);
+                newItem = new ShopItem(armorId, displayName, price, level, 1, "", tier + " chestplate gear.", "armor");
+                itemCatalog.put(newItem.getId(), newItem);
+                armorCounter++;
+            }
+
+            // --- Process Helmets ---
+            List<String> helmetIds = new ArrayList<>();
+            for (Field field : drawableFields) {
+                String fieldName = field.getName();
+                if (fieldName.startsWith("helmet_")) {
+                    int resId = context.getResources().getIdentifier(fieldName, "drawable", packageName);
+                    if (resId != 0) {
+                        helmetIds.add(fieldName);
+                    } else {
+                         Log.w(TAG, "Drawable resource missing for potential item: " + fieldName + ", skipping.");
+                     }
+                }
+            }
+            Collections.sort(helmetIds);
+            int totalHelmets = helmetIds.size();
+            // Distribute helmets across levels
+            int level1Helmets = (int) (totalHelmets * 0.4); // 40% level 1
+            int level2Helmets = (int) (totalHelmets * 0.25); // 25% level 2
+            int level3Helmets = (int) (totalHelmets * 0.2); // 20% level 3
+            int level4Helmets = (int) (totalHelmets * 0.1); // 10% level 4
+            int helmetCounter = 0;
+            int baseHelmetPrice = 110;
+            for (String helmetId : helmetIds) {
+                int level; String tier;
+                if (helmetCounter < level1Helmets) { level = 1; tier = "Basic"; }
+                else if (helmetCounter < level1Helmets + level2Helmets) { level = 2; tier = "Improved"; }
+                else if (helmetCounter < level1Helmets + level2Helmets + level3Helmets) { level = 3; tier = "Advanced"; }
+                else if (helmetCounter < level1Helmets + level2Helmets + level3Helmets + level4Helmets) { level = 4; tier = "Superior"; }
+                else { level = 5; tier = "Legendary"; }
+                String displayName = "Helmet " + helmetId.replaceAll("helmet_", "");
+                int price = baseHelmetPrice + (level * 25) + (helmetCounter * 7);
+                // *** Only add if drawable confirmed *** (already done by filtering helmetIds)
+                newItem = new ShopItem(helmetId, displayName, price, level, 1, "", tier + " helmet gear.", "helmet");
+                itemCatalog.put(newItem.getId(), newItem);
+                helmetCounter++;
+            }
+
+            // --- Process Greaves ---
+             List<String> greavesIds = new ArrayList<>();
+             for (Field field : drawableFields) {
+                 String fieldName = field.getName();
+                 if (fieldName.startsWith("greaves_")) {
+                     int resId = context.getResources().getIdentifier(fieldName, "drawable", packageName);
+                     if (resId != 0) {
+                         greavesIds.add(fieldName);
+                     } else {
+                          Log.w(TAG, "Drawable resource missing for potential item: " + fieldName + ", skipping.");
+                      }
+                 }
+             }
+             Collections.sort(greavesIds);
+            int totalGreaves = greavesIds.size();
+            // Distribute greaves across levels
+            int level1Greaves = (int) (totalGreaves * 0.4); // 40% level 1
+            int level2Greaves = (int) (totalGreaves * 0.25); // 25% level 2
+            int level3Greaves = (int) (totalGreaves * 0.2); // 20% level 3
+            int level4Greaves = (int) (totalGreaves * 0.1); // 10% level 4
+            int greavesCounter = 0;
+            int baseGreavesPrice = 115;
+            for (String greavesId : greavesIds) {
+                int level; String tier;
+                if (greavesCounter < level1Greaves) { level = 1; tier = "Basic"; }
+                else if (greavesCounter < level1Greaves + level2Greaves) { level = 2; tier = "Improved"; }
+                else if (greavesCounter < level1Greaves + level2Greaves + level3Greaves) { level = 3; tier = "Advanced"; }
+                else if (greavesCounter < level1Greaves + level2Greaves + level3Greaves + level4Greaves) { level = 4; tier = "Superior"; }
+                else { level = 5; tier = "Legendary"; }
+                String displayName = "Greaves " + greavesId.replaceAll("greaves_", "");
+                int price = baseGreavesPrice + (level * 25) + (greavesCounter * 7);
+                // *** Only add if drawable confirmed ***
+                newItem = new ShopItem(greavesId, displayName, price, level, 1, "", tier + " greaves gear.", "greaves");
+                itemCatalog.put(newItem.getId(), newItem);
+                greavesCounter++;
+            }
+
+            // --- Process Boots ---
+             List<String> bootsIds = new ArrayList<>();
+             for (Field field : drawableFields) {
+                 String fieldName = field.getName();
+                 if (fieldName.startsWith("boots_")) {
+                     int resId = context.getResources().getIdentifier(fieldName, "drawable", packageName);
+                     if (resId != 0) {
+                         bootsIds.add(fieldName);
+                     } else {
+                          Log.w(TAG, "Drawable resource missing for potential item: " + fieldName + ", skipping.");
+                      }
+                 }
+             }
+             Collections.sort(bootsIds);
+            int totalBoots = bootsIds.size();
+            // Distribute boots across levels
+            int level1Boots = (int) (totalBoots * 0.4); // 40% level 1
+            int level2Boots = (int) (totalBoots * 0.25); // 25% level 2
+            int level3Boots = (int) (totalBoots * 0.2); // 20% level 3
+            int level4Boots = (int) (totalBoots * 0.1); // 10% level 4
+            int bootsCounter = 0;
+            int baseBootsPrice = 105;
+            for (String bootsId : bootsIds) {
+                int level; String tier;
+                if (bootsCounter < level1Boots) { level = 1; tier = "Basic"; }
+                else if (bootsCounter < level1Boots + level2Boots) { level = 2; tier = "Improved"; }
+                else if (bootsCounter < level1Boots + level2Boots + level3Boots) { level = 3; tier = "Advanced"; }
+                else if (bootsCounter < level1Boots + level2Boots + level3Boots + level4Boots) { level = 4; tier = "Superior"; }
+                else { level = 5; tier = "Legendary"; }
+                String displayName = "Boots " + bootsId.replaceAll("boots_", "");
+                int price = baseBootsPrice + (level * 25) + (bootsCounter * 7);
+                // *** Only add if drawable confirmed ***
+                newItem = new ShopItem(bootsId, displayName, price, level, 1, "", tier + " boots gear.", "boots");
+                itemCatalog.put(newItem.getId(), newItem);
+                bootsCounter++;
+            }
+            
+            Log.d(TAG, "Loaded (with drawable check): " + weaponIds.size() + " weapons, " + armorIds.size() + " armors, " + helmetIds.size() + " helmets, " + greavesIds.size() + " greaves, " + bootsIds.size() + " boots.");
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading items dynamically: " + e.getMessage());
+            e.printStackTrace();
+            // Fallback remains the same
+            newItem = new ShopItem("weapon_1", "Weapon 1", 120, 1, 1, "", "Basic weapon gear.", "weapon");
+            itemCatalog.put(newItem.getId(), newItem);
+            newItem = new ShopItem("chestplate_1", "Chestplate 1", 100, 1, 1, "", "Basic chestplate gear.", "armor");
+            itemCatalog.put(newItem.getId(), newItem);
+        }
+
+        // --- Process Badges (assuming they don't rely on missing drawables) ---
+        // If badges *also* load drawables by ID and might be missing, add checks here too.
+        // Example check for one badge if it loaded by ID:
+        // String badgeId = "points_1000";
+        // int badgeResId = context.getResources().getIdentifier(badgeId, "drawable", packageName);
+        // if (badgeResId != 0) {
+             newItem = new ShopItem("points_1000", "Bronze Achiever", 1000, 3, 1, "", "Achievement badge for earning 1000 points.", "badge");
+             itemCatalog.put(newItem.getId(), newItem);
+        // } else { Log.w(TAG, "Drawable resource missing for badge: " + badgeId); }
+        // (Repeat for other badges if necessary)
+        newItem = new ShopItem("points_2500", "Silver Achiever", 2500, 5, 1, "", "Achievement badge for earning 2500 points.", "badge"); itemCatalog.put(newItem.getId(), newItem);
+        newItem = new ShopItem("points_5000", "Gold Achiever", 5000, 10, 1, "", "Achievement badge for earning 5000 points.", "badge"); itemCatalog.put(newItem.getId(), newItem);
+        newItem = new ShopItem("points_10000", "Platinum Achiever", 10000, 15, 1, "", "Achievement badge for earning 10000 points.", "badge"); itemCatalog.put(newItem.getId(), newItem);
+        newItem = new ShopItem("quests_completed_10", "Adventurer", 500, 2, 1, "", "Completed 10 quests.", "badge"); itemCatalog.put(newItem.getId(), newItem);
+        newItem = new ShopItem("quests_completed_20", "Hero", 1000, 4, 1, "", "Completed 20 quests.", "badge"); itemCatalog.put(newItem.getId(), newItem);
+        newItem = new ShopItem("quests_completed_50", "Legend", 2500, 8, 1, "", "Completed 50 quests.", "badge"); itemCatalog.put(newItem.getId(), newItem);
+        newItem = new ShopItem("items_badge_10", "Collector", 400, 2, 1, "", "Collected 10 unique items.", "badge"); itemCatalog.put(newItem.getId(), newItem);
+        newItem = new ShopItem("items_badge_20", "Hoarder", 800, 3, 1, "", "Collected 20 unique items.", "badge"); itemCatalog.put(newItem.getId(), newItem);
+        newItem = new ShopItem("items_badge_50", "Treasure Hunter", 2000, 5, 1, "", "Collected 50 unique items.", "badge"); itemCatalog.put(newItem.getId(), newItem);
+        newItem = new ShopItem("mystery_badge", "Mystery Achievement", 1500, 5, 1, "", "A special achievement with mysterious powers.", "badge"); itemCatalog.put(newItem.getId(), newItem);
+
+
+        // --- Process Potions (assuming their specific drawables 'potion001' etc. exist) ---
+        // No check needed here as they specify drawable names directly in the constructor
+        // and the adapter already has fallback logic.
+        newItem = new ShopItem("potion_1", "Strength Potion", 160, 1, 1, "potion001", "", "consumable"); itemCatalog.put(newItem.getId(), newItem);
+        newItem = new ShopItem("potion_2", "Rage Draught", 175, 1, 1, "potion002", "", "consumable"); itemCatalog.put(newItem.getId(), newItem);
+         newItem = new ShopItem("potion_3", "Dexterity Serum", 190, 1, 1, "potion003", "", "consumable"); itemCatalog.put(newItem.getId(), newItem);
+         newItem = new ShopItem("potion_4", "Mindmeld Elixir", 200, 1, 1, "potion004", "", "consumable"); itemCatalog.put(newItem.getId(), newItem);
+         newItem = new ShopItem("potion_5", "Vigor Potion", 220, 1, 1, "potion005", "", "consumable"); itemCatalog.put(newItem.getId(), newItem);
+         newItem = new ShopItem("potion_6", "Giant Strength Tonic", 240, 1, 1, "potion006", "", "consumable"); itemCatalog.put(newItem.getId(), newItem);
+         newItem = new ShopItem("potion_7", "Clarity Elixir", 255, 1, 1, "potion007", "", "consumable"); itemCatalog.put(newItem.getId(), newItem);
+         newItem = new ShopItem("potion_8", "Midas Brew", 270, 1, 1, "potion008", "", "consumable"); itemCatalog.put(newItem.getId(), newItem);
+         newItem = new ShopItem("potion_9", "Efficiency Serum", 290, 1, 1, "potion009", "", "consumable"); itemCatalog.put(newItem.getId(), newItem);
+         newItem = new ShopItem("potion_10", "Insight Infusion", 300, 1, 1, "potion000", "", "consumable"); itemCatalog.put(newItem.getId(), newItem);
+    }
+
+    private void onItemClick(ShopItem item) {
+        // Handle item click
+        Toast.makeText(this, "Clicked: " + item.getName(), Toast.LENGTH_SHORT).show();
+    }
+
+    private void loadGoldCoins() {
+        String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        FirebaseFirestore.getInstance()
+            .collection("users").document(uid)
+            .addSnapshotListener((docSnap, error) -> {
+                if (docSnap != null && docSnap.exists()) {
+                    Long coins = docSnap.getLong("goldCoins");
+                    tvGoldCoins.setText("Coins: " + (coins != null ? coins : 0));
+                }
+            });
+    }
+
+    private void loadInitialUserDataAndSetupListener() {
+        userRef.addSnapshotListener((docSnap, error) -> {
+            if (error != null) {
+                Log.e(TAG, "Listen failed.", error);
+                // Optionally show an error to the user
+                return;
+            }
+
+            if (docSnap != null && docSnap.exists()) {
+                Log.d(TAG, "Snapshot listener triggered.");
+                // Generate shop/inventory ONLY if it hasn't been generated yet for this activity instance
+                // OR if a daily reset happened (indicated by currentShopList being null after recreate)
+                if (currentShopList == null) {
+                    Log.d(TAG, "Generating shop/inventory list from snapshot listener (likely initial load or after reset).");
+                    generateDailyShopAndInventory(docSnap);
+                } else {
+                    Log.d(TAG, "Snapshot listener update: Updating inventory/equipped items, but NOT regenerating shop list.");
+                    // Only update dynamic parts: inventory counts, equipped items, coins
+                    updateInventoryAndEquipment(docSnap);
+                }
+                
+                // Update non-list UI elements that might change often
+                Long coins = docSnap.getLong("goldCoins");
+                tvGoldCoins.setText("Coins: " + (coins != null ? coins : 0));
+                updateCharacterVisuals(docSnap); // Extracted character/slot visual updates
+
+            } else {
+                Log.d(TAG, "Current data: null");
+                // Handle user not found or document deleted case
+                Toast.makeText(this, "User data not found.", Toast.LENGTH_SHORT).show();
+                // Maybe clear the adapter or finish activity
+                adapter.setItems(new ArrayList<>(), new ArrayList<>()); // Clear adapter
+                currentShopList = new ArrayList<>(); // Clear cache
+            }
+        });
+    }
+
+    // Renamed from loadUserData to be more specific
+    private void generateDailyShopAndInventory(DocumentSnapshot docSnap) {
+        Log.d(TAG, "Executing generateDailyShopAndInventory");
+        if (itemCatalog == null || itemCatalog.isEmpty()) {
+            Log.e(TAG, "Item catalog is empty, cannot generate shop.");
+            initializeItems();
+            if (itemCatalog.isEmpty()) return;
+        }
+
+        // Check if shopItems exists for today
+        String today = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+        List<String> shopItemIds = null;
+        if (docSnap.contains("shopItems") && docSnap.contains("lastShopDate")) {
+            String lastShopDate = docSnap.getString("lastShopDate");
+            if (today.equals(lastShopDate)) {
+                Object shopItemsObj = docSnap.get("shopItems");
+                if (shopItemsObj instanceof List<?>) {
+                    shopItemIds = new ArrayList<>();
+                    for (Object o : (List<?>) shopItemsObj) {
+                        if (o instanceof String) shopItemIds.add((String) o);
+                    }
+                }
+            }
+        }
+        if (shopItemIds != null && !shopItemIds.isEmpty()) {
+            // Load shop items from Firestore
+            List<ShopItem> loadedShopItems = new ArrayList<>();
+            for (String id : shopItemIds) {
+                if (itemCatalog.containsKey(id)) {
+                    loadedShopItems.add(itemCatalog.get(id));
+                }
+            }
+            currentShopList = loadedShopItems;
+            Log.d(TAG, "Loaded shop list from Firestore for today: " + currentShopList.size() + " items.");
+            updateInventoryAndEquipment(docSnap);
+            return;
+        }
+
+        // Get inventory map
+        Map<String, Long> invMap = new HashMap<>();
+        Map<String, Object> rawInv = (Map<String, Object>) docSnap.get("inventory");
+        if (rawInv != null) {
+            for (Map.Entry<String, Object> e : rawInv.entrySet()) {
+                try { invMap.put(e.getKey(), ((Number)e.getValue()).longValue()); } catch (Exception ignored) {}
+            }
+        }
+
+        // Get boughtShopItems array from Firestore
+        List<String> boughtShopItems = new ArrayList<>();
+        if (docSnap.contains("boughtShopItems")) {
+            Object boughtObj = docSnap.get("boughtShopItems");
+            if (boughtObj instanceof List<?>) {
+                for (Object o : (List<?>) boughtObj) {
+                    if (o instanceof String) boughtShopItems.add((String) o);
+                }
+            }
+        }
+
+        // Get user level
+        long userLevel = 1;
+        if (docSnap.contains("level")) {
+            Object levelObj = docSnap.get("level");
+            if (levelObj instanceof Number) {
+                userLevel = ((Number) levelObj).longValue();
+            }
+        }
+
+        // Build eligible items based on player level FROM THE CATALOG
+        List<ShopItem> eligible = new ArrayList<>();
+        for (ShopItem item : itemCatalog.values()) {
+            // More strict level requirement implementation
+            long itemLevel = item.getMinLevel();
+            String itemSlot = item.getSlot();
+            boolean isEquipment = "weapon".equals(itemSlot) || "armor".equals(itemSlot) || 
+                                 "helmet".equals(itemSlot) || "greaves".equals(itemSlot) ||
+                                 "boots".equals(itemSlot);
+            
+            // Allow all consumables regardless of level
+            boolean isConsumable = "consumable".equals(itemSlot);
+            
+            // Only allow badges with a level requirement at or below the user's level
+            boolean isBadge = "badge".equals(itemSlot);
+            
+            if (isConsumable || (isBadge && itemLevel <= userLevel) || (isEquipment && itemLevel <= userLevel)) {
+                // For equipment, apply stricter filtering based on user level
+                if (!isEquipment || applyLevelBasedFiltering(itemSlot, userLevel)) {
+                    eligible.add(item);
+                }
+            }
+        }
+
+        // --- Generate the Daily Shop List --- 
+        Map<String, List<ShopItem>> slotPools = new HashMap<>();
+        slotPools.put("weapon", new ArrayList<>());
+        slotPools.put("armor", new ArrayList<>());
+        slotPools.put("helmet", new ArrayList<>());
+        slotPools.put("greaves", new ArrayList<>());
+        slotPools.put("boots", new ArrayList<>());
+        List<ShopItem> potionPool = new ArrayList<>();
+        for (ShopItem si : eligible) {
+            if (invMap.getOrDefault(si.getId(), 0L) > 0) {
+                continue; // Skip owned items
+            }
+            if (boughtShopItems.contains(si.getId())) {
+                continue; // Skip already bought items for today
+            }
+            if (slotPools.containsKey(si.getSlot())) {
+                slotPools.get(si.getSlot()).add(si);
+            } else if ("consumable".equals(si.getSlot())) {
+                potionPool.add(si);
+            }
+        }
+        List<String> availableSlots = new ArrayList<>();
+        for (String slot : slotPools.keySet()) {
+            if (!slotPools.get(slot).isEmpty()) {
+                availableSlots.add(slot);
+            }
+        }
+        long seed = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date()).hashCode();
+        List<ShopItem> dailyShopItems = new ArrayList<>();
+        Random shopRand = new Random(seed);
+        final int SHOP_SIZE = 4;
+        int itemsAdded = 0;
+        boolean potionAdded = false;
+        
+        // First attempt to add a potion with 25% chance
+        if (!potionPool.isEmpty() && shopRand.nextInt(100) < 25) {
+            Collections.shuffle(potionPool, shopRand);
+            dailyShopItems.add(potionPool.get(0));
+            itemsAdded++;
+            potionAdded = true;
+            Log.d(TAG, "Added potion to shop on first attempt: " + potionPool.get(0).getName());
+        }
+        
+        // Add one equipment item per slot to ensure fair distribution across slots
+        Collections.shuffle(availableSlots, shopRand);
+        for (String slot : availableSlots) {
+            if (itemsAdded >= SHOP_SIZE) break;
+            List<ShopItem> pool = slotPools.get(slot);
+            if (pool == null || pool.isEmpty()) continue;
+            Collections.shuffle(pool, shopRand);
+            ShopItem equipItem = pool.get(0);
+            if (!dailyShopItems.contains(equipItem)) {
+                dailyShopItems.add(equipItem);
+                itemsAdded++;
+            }
+        }
+        
+        // Second attempt to add a potion with higher probability if we still have space
+        if (!potionAdded && !potionPool.isEmpty() && itemsAdded < SHOP_SIZE) {
+            Collections.shuffle(potionPool, shopRand);
+            dailyShopItems.add(potionPool.get(0));
+            Log.d(TAG, "Added potion to shop on second attempt: " + potionPool.get(0).getName());
+        }
+        
+        Collections.shuffle(dailyShopItems, shopRand);
+        // --- End Shop Generation ---
+
+        // Cache the generated list
+        currentShopList = new ArrayList<>(dailyShopItems); 
+        Log.d(TAG, "Generated and cached daily shop list with " + currentShopList.size() + " items.");
+
+        // Save to Firestore
+        List<String> shopIdsToSave = new ArrayList<>();
+        for (ShopItem item : currentShopList) shopIdsToSave.add(item.getId());
+        Map<String, Object> shopData = new HashMap<>();
+        shopData.put("shopItems", shopIdsToSave);
+        shopData.put("lastShopDate", today);
+        userRef.update(shopData);
+
+        // Update the adapter with the newly generated shop list and current inventory
+        updateInventoryAndEquipment(docSnap);
+    }
+
+    // Update inventory and equipment method with proper filtering of bought items
+    private void updateInventoryAndEquipment(DocumentSnapshot docSnap) {
+        Log.d(TAG, "Executing updateInventoryAndEquipment");
+        
+        // Build inventory map from snapshot
+        Map<String, Long> invMap = new HashMap<>();
+        Map<String, Object> rawInv = (Map<String, Object>) docSnap.get("inventory");
+        if (rawInv != null) {
+            for (Map.Entry<String, Object> e : rawInv.entrySet()) {
+                try { 
+                    invMap.put(e.getKey(), ((Number)e.getValue()).longValue()); 
+                } catch (Exception ignored) {
+                    Log.w(TAG, "Error converting inventory value for key: " + e.getKey());
+                }
+            }
+        }
+
+        // Get boughtShopItems array from Firestore
+        List<String> boughtShopItems = new ArrayList<>();
+        if (docSnap.contains("boughtShopItems")) {
+            Object boughtObj = docSnap.get("boughtShopItems");
+            if (boughtObj instanceof List<?>) {
+                for (Object o : (List<?>) boughtObj) {
+                    if (o instanceof String) boughtShopItems.add((String) o);
+                }
+            }
+        }
+
+        // Get equipped items
+        Map<String, Object> equipped = (Map<String, Object>) docSnap.get("equipped");
+        String armorId = equipped != null ? (String) equipped.get("armor") : null;
+        String weaponId = equipped != null ? (String) equipped.get("weapon") : null;
+        String helmetId = equipped != null ? (String) equipped.get("helmet") : null;
+        String greavesId = equipped != null ? (String) equipped.get("greaves") : null;
+        String bootsId = equipped != null ? (String) equipped.get("boots") : null;
+        String supportId = equipped != null && equipped.containsKey("support")
+                ? (String) equipped.get("support") : null;
+        
+        // Update equipped state in the adapter FIRST (important for filtering inventory display)
+        adapter.setEquipped(armorId, weaponId, helmetId, greavesId, bootsId, supportId);
+
+        // Create separate list for inventory items (owned items)
+        List<ShopItem> inventoryItems = new ArrayList<>();
+        for (ShopItem item : itemCatalog.values()) { 
+            String itemId = item.getId();
+            if (itemId.equals("placeholder_weapon") || itemId.equals("placeholder_chestplate")) continue;
+            
+            long quantityOwned = invMap.getOrDefault(itemId, 0L);
+            if (quantityOwned > 0) { // Only add items that are actually owned
+                 inventoryItems.add(item);
+            }
+        }
+
+        // If currentShopList is null (first time or regenerated shop), initialize empty
+        if (currentShopList == null) {
+            Log.w(TAG, "currentShopList is null in updateInventoryAndEquipment, initializing empty.");
+            currentShopList = new ArrayList<>();
+        }
+        
+        // Filter out items that have been bought (owned > 0 or in boughtShopItems) so shop shrinks
+        List<ShopItem> filteredShopItems = new ArrayList<>();
+        for (ShopItem shopItem : currentShopList) {
+            if (invMap.getOrDefault(shopItem.getId(), 0L) == 0L && !boughtShopItems.contains(shopItem.getId())) {
+                filteredShopItems.add(shopItem);
+            } else {
+                Log.d(TAG, "Filtering out bought item from shop: " + shopItem.getId());
+            }
+        }
+        
+        // Save the filtered list back to the current shop list to preserve state between sessions
+        currentShopList = new ArrayList<>(filteredShopItems);
+        
+        // Update the adapter with the filtered shop items and inventory items
+        adapter.setItems(filteredShopItems, inventoryItems);
+        adapter.setInventory(invMap); // Pass the latest inventory map
+
+        // Update the empty message visibility based on adapter content
+        TextView tvItemsEmpty = findViewById(R.id.tvItemsEmpty);
+        if (tvItemsEmpty != null) {
+            tvItemsEmpty.setVisibility(adapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
+        }
+    }
+    
+    // New method to specifically update character visuals
+    private void updateCharacterVisuals(DocumentSnapshot docSnap) {
+         // Assign or load character sprite...
+         try {
+             Long charResLong = docSnap.getLong("characterRes");
+             Field[] fields = R.drawable.class.getFields();
+              List<Integer> charIds = new ArrayList<>();
+              for (Field f : fields) {
+                  String name = f.getName();
+                  if (name.startsWith("character_")) {
+                      charIds.add(f.getInt(null));
+                  }
+              }
+              if (!charIds.isEmpty()) {
+                  int resToUse;
+                  if (charResLong == null || !charIds.contains(charResLong.intValue())) {
+                      resToUse = charIds.get(new Random().nextInt(charIds.size()));
+                      userRef.update("characterRes", resToUse);
+                  } else {
+                      resToUse = charResLong.intValue();
+                  }
+                  ivAvatarBase.setImageResource(resToUse);
+                  
+                  String resName = "";
+                  for (Field f : fields) {
+                      if (f.getInt(null) == resToUse) {
+                          resName = f.getName();
+                          break;
+                      }
+                  }
+                  
+                  if (resName.matches("character_[1-7]")) {
+                      List<Integer> hairIds = new ArrayList<>();
+                      for (Field f : fields) {
+                          String name = f.getName();
+                          if (name.startsWith("hair_")) {
+                              hairIds.add(f.getInt(null));
+                          }
+                      }
+                      if (!hairIds.isEmpty()) {
+                          Long hairResLong = docSnap.getLong("hairRes");
+                          int hairToUse;
+                          if (hairResLong == null || !hairIds.contains(hairResLong.intValue())) {
+                              hairToUse = hairIds.get(new Random().nextInt(hairIds.size()));
+                              userRef.update("hairRes", hairToUse);
+                          } else {
+                              hairToUse = hairResLong.intValue();
+                          }
+                          ImageView ivHair = findViewById(R.id.ivAvatarHair);
+                          if (ivHair != null) {
+                              ivHair.setImageResource(hairToUse);
+                              ivHair.setVisibility(View.VISIBLE);
+                          }
+                      }
+                  }
+              }
+         } catch (Exception e) {
+             e.printStackTrace();
+         }
+         
+         // Get equipped items map for visuals
+         Map<String, Object> equipped = (Map<String, Object>) docSnap.get("equipped");
+         String armorId = equipped != null ? (String) equipped.get("armor") : null;
+         String weaponId = equipped != null ? (String) equipped.get("weapon") : null;
+         String helmetId = equipped != null ? (String) equipped.get("helmet") : null;
+         String greavesId = equipped != null ? (String) equipped.get("greaves") : null;
+         String bootsId = equipped != null ? (String) equipped.get("boots") : null;
+         // Update character and slot visuals for equipped items
+         // Chestplate
+          if (armorId != null) {
+              ShopItem equippedArmor = itemCatalog.get(armorId);
+              if (equippedArmor != null) {
+                  int resId = getResources().getIdentifier(armorId, "drawable", getPackageName());
+                  if (resId != 0) {
+                      ivAvatarChestplate.setImageResource(resId);
+                      ivAvatarChestplate.setVisibility(View.VISIBLE);
+                      ivSlotChestplate.setImageResource(resId);
+                  }
+              } else {
+                  ivAvatarChestplate.setVisibility(View.GONE);
+                  ivSlotChestplate.setImageResource(R.drawable.placeholder_chestplate);
+              }
+          } else {
+              ivAvatarChestplate.setVisibility(View.GONE);
+              ivSlotChestplate.setImageResource(R.drawable.placeholder_chestplate);
+          }
+          // Weapon
+          if (weaponId != null) {
+              ShopItem equippedWeapon = itemCatalog.get(weaponId); 
+              if (equippedWeapon != null) {
+                  if (!weaponId.equals("placeholder_weapon")) {
+                      int resId = getResources().getIdentifier(weaponId, "drawable", getPackageName());
+                      if (resId != 0) {
+                          ivAvatarWeapon.setImageResource(resId);
+                          ivAvatarWeapon.setVisibility(View.VISIBLE);
+                          ivSlotWeapon.setImageResource(resId);
+                      }
+                  }
+              } else {
+                  ivAvatarWeapon.setVisibility(View.GONE);
+                  ivSlotWeapon.setImageResource(R.drawable.placeholder_weapon);
+              }
+          } else {
+              ivAvatarWeapon.setVisibility(View.GONE);
+              ivSlotWeapon.setImageResource(R.drawable.placeholder_weapon);
+          }
+          // Helmet
+          if (helmetId != null) {
+              ShopItem equippedHelmet = itemCatalog.get(helmetId);
+              if (equippedHelmet != null) {
+                  @SuppressLint("DiscouragedApi") int resId = getResources().getIdentifier(helmetId, "drawable", getPackageName());
+                  if (resId != 0) {
+                      ivAvatarHelmet.setImageResource(resId);
+                      ivAvatarHelmet.setVisibility(View.VISIBLE);
+                      ivSlotHelmet.setImageResource(resId);
+                  }
+              } else {
+                  ivAvatarHelmet.setVisibility(View.GONE);
+                  ivSlotHelmet.setImageResource(R.drawable.placeholder_helmet);
+              }
+          } else {
+              ivAvatarHelmet.setVisibility(View.GONE);
+              ivSlotHelmet.setImageResource(R.drawable.placeholder_helmet);
+          }
+          // Greaves
+          if (greavesId != null) {
+              ShopItem equippedGreaves = itemCatalog.get(greavesId);
+              if (equippedGreaves != null) {
+                  @SuppressLint("DiscouragedApi") int resId = getResources().getIdentifier(greavesId, "drawable", getPackageName());
+                  if (resId != 0) {
+                      ivAvatarGreaves.setImageResource(resId);
+                      ivAvatarGreaves.setVisibility(View.VISIBLE);
+                      ivSlotGreaves.setImageResource(resId);
+                  }
+              } else {
+                  ivAvatarGreaves.setVisibility(View.GONE);
+                  ivSlotGreaves.setImageResource(R.drawable.placeholder_greaves);
+              }
+          } else {
+              ivAvatarGreaves.setVisibility(View.GONE);
+              ivSlotGreaves.setImageResource(R.drawable.placeholder_greaves);
+          }
+          // Boots
+          if (bootsId != null) {
+              ShopItem equippedBoots = itemCatalog.get(bootsId);
+              if (equippedBoots != null) {
+                  @SuppressLint("DiscouragedApi") int resId = getResources().getIdentifier(bootsId, "drawable", getPackageName());
+                  if (resId != 0) {
+                      ivAvatarBoots.setImageResource(resId);
+                      ivAvatarBoots.setVisibility(View.VISIBLE);
+                      ivSlotBoots.setImageResource(resId);
+                  }
+              } else {
+                  ivAvatarBoots.setVisibility(View.GONE);
+                  ivSlotBoots.setImageResource(R.drawable.placeholder_boots);
+              }
+          } else {
+              ivAvatarBoots.setVisibility(View.GONE);
+              ivSlotBoots.setImageResource(R.drawable.placeholder_boots);
+          }
+    }
+
+    /**
+     * Progressive unlocking: at level 1 unlock ~1/3 of items, linearly increasing to full unlock at MAX_LEVEL.
+     */
+    private boolean applyLevelBasedFiltering(String itemSlot, long userLevel) {
+        int maxLevel = XpCalculator.MAX_LEVEL;
+        double minProbability = 1.0 / 3.0;
+        double fraction = (double)(userLevel - 1) / (maxLevel - 1);
+        double threshold = minProbability + fraction * (1.0 - minProbability);
+        // Seed with slot and user level for consistent but level-dependent randomness
+        Random rand = new Random(itemSlot.hashCode() + Long.valueOf(userLevel).hashCode());
+        return rand.nextDouble() < threshold;
+    }
+}

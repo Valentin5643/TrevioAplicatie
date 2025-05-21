@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/TrevioCard.LowElevation"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    app:cardBackgroundColor="@color/quest_dark_background"
+    app:strokeColor="@color/quest_card_stroke"
+    app:strokeWidth="1dp">
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/questTitle"
+            style="@style/TrevioText.Subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="16sp"
+            android:textColor="@color/quest_card_text"
+            tools:text="Complete 5 Tasks" />
+
+        <TextView
+            android:id="@+id/questDescription"
+            style="@style/TrevioText.Body"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="@color/welcome_text_secondary"
+            android:visibility="visible"
+            android:ellipsize="end"
+            android:maxLines="3"
+            tools:text="Complete 5 tasks before the end of this week to earn bonus XP and coins." />
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/questProgressBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:progress="60"
+            android:max="100"
+            app:trackThickness="8dp"
+            app:trackCornerRadius="4dp"
+            app:indicatorColor="@color/welcome_accent"
+            app:trackColor="@color/welcome_card_stroke" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <TextView
+                android:id="@+id/questProgressText"
+                style="@style/TrevioText.Caption"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_gravity="center_vertical"
+                android:textColor="@color/welcome_text_secondary"
+                tools:text="3 of 5 completed" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnClaimReward"
+                style="@style/TrevioButton.Accent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Claim"
+                android:minWidth="0dp"
+                android:paddingHorizontal="16dp"
+                android:visibility="gone"
+                tools:visibility="visible" />
+        </LinearLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView> 
