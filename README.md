@@ -1,10 +1,10 @@
 # Aplicația Mea
 
-O aplicație Android modernă creată cu pasiune și atenție la detalii. Acest proiect își propune să ofere o experiență de utilizare captivantă, demonstrând cele mai bune practici în dezvoltarea Android. Aplicația permite utilizatorilor să gestioneze și să organizeze diverse activități zilnice, oferind o interfață intuitivă și prietenoasă.
+O aplicație Android modernă creată cu pasiune și atenție la detalii. Acest proiect își propune să ofere o experiență de utilizare captivantă. Aplicația permite utilizatorilor să gestioneze și să organizeze diverse activități zilnice, oferind o interfață intuitivă și prietenoasă.
 
 ## Cum să Începi
 
-Pentru a începe cu acest proiect, urmează acești pași simpli:
+Pentru a începe cu acest proiect, urmează acești pași:
 
 ### Cerințe Preliminare
 
