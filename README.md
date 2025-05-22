@@ -51,8 +51,7 @@ Proiectul urmează o structură standard pentru aplicații Android:
 
 ## Cum să Contribui
 
-Vrei să contribui? Minunat! Iată cum poți ajuta:
-
+Vrei să contribui?
 1. Fork la repository
 2. Creează un branch nou (`git checkout -b feature/functionalitate-noua`)
 3. Fă modificările dorite
