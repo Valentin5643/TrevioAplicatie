@@ -1,6 +1,6 @@
 # Aplicația Mea
 
-O aplicație Android modernă creată cu pasiune și atenție la detalii. Acest proiect își propune să ofere o experiență de utilizare captivantă. Aplicația permite utilizatorilor să gestioneze și să organizeze diverse activități zilnice, oferind o interfață intuitivă și prietenoasă.
+O aplicație Android modernă. Acest proiect își propune să ofere o experiență de utilizare captivantă. Aplicația permite utilizatorilor să gestioneze și să organizeze diverse activități zilnice, oferind o interfață intuitivă și prietenoasă.
 
 ## Cum să Începi
 
@@ -56,7 +56,7 @@ Vrei să contribui?
 2. Creează un branch nou (`git checkout -b feature/functionalitate`)
 3. Fă modificările dorite
 4. Commit la modificări (`git commit -m 'Adaugă o funcționalitate'`)
-5. Push la branch (`git push origin feature/functionalitate-noua`)
+5. Push la branch (`git push origin feature/functionalitate`)
 6. Deschide un Pull Request
 
 ## Contact
