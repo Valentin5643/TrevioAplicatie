@@ -44,7 +44,7 @@ Navighează în directorul proiectului în terminal și rulează:
 
 ## Structura Aplicatiei Trevio
 
-Proiectul urmează o structură standard pentru aplicații Android:
+Aplicatia urmează o structură standard:
 - `app/src/main/java` - Conține tot codul sursă Java
 - `app/src/main/res` - Conține toate resursele (layouturi, imagini, etc.)
 - `app/src/main/assets` - Conține fișierele statice
@@ -54,7 +54,7 @@ Proiectul urmează o structură standard pentru aplicații Android:
 
 ### Primul Pas: Crearea Contului și Logarea
 
-Pentru a începe aventura în Trevio:
+Pentru a utiliza aplicatia Trevio:
 1.Deschide aplicația
 2.Vei fi întâmpinat de secțiunea de creeare a contului, unde vei trece:
 -Numele(care vă fi utilizat ulterior pe pagina principală)
@@ -66,7 +66,7 @@ Pentru a începe aventura în Trevio:
 
 ### Explorarea Meniului Principal
 
-După ce te-ai conectat, vei descoperi un meniu principal cu mai multe opțiuni:
+După ce te-ai conectat, vei intampina un meniu principal cu mai multe opțiuni:
 - În mijloc vei fi salutat când intri pe aplicație
 - în partea de sus vei putea ieși de pe cont
 - Meniul principal care îți oferă acces la toate funcționalitățile
