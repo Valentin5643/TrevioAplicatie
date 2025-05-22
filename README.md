@@ -53,9 +53,9 @@ Proiectul urmează o structură standard pentru aplicații Android:
 
 Vrei să contribui?
 1. Fork la repository
-2. Creează un branch nou (`git checkout -b feature/functionalitate-noua`)
+2. Creează un branch nou (`git checkout -b feature/functionalitate`)
 3. Fă modificările dorite
-4. Commit la modificări (`git commit -m 'Adaugă o funcționalitate nouă'`)
+4. Commit la modificări (`git commit -m 'Adaugă o funcționalitate'`)
 5. Push la branch (`git push origin feature/functionalitate-noua`)
 6. Deschide un Pull Request
 
