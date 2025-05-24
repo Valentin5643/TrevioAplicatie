@@ -6,23 +6,25 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/welcome_gradient_background"
-    android:padding="24dp">
+    android:paddingStart="22dp"
+    android:paddingEnd="21dp"
+    android:paddingTop="24dp"
+    android:paddingBottom="24dp">
 
-    <!-- Level Up Icon/Image -->
+    <!-- Achievement visuals -->
     <ImageView
-        android:id="@+id/ivLevelUpIcon"
-        android:layout_width="120dp"
+        android:id="@+id/levelUpIcon"
+        android:layout_width="115dp"
         android:layout_height="120dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:src="@drawable/level_up_icon"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         android:contentDescription="Level Up" />
 
-    <!-- Level Up Title Text -->
     <TextView
-        android:id="@+id/tvLevelUpTitle"
+        android:id="@+id/levelUpTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
@@ -34,11 +36,10 @@
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/ivLevelUpIcon" />
+        app:layout_constraintTop_toBottomOf="@+id/levelUpIcon" />
 
-    <!-- New Level Text -->
     <TextView
-        android:id="@+id/tvNewLevel"
+        android:id="@+id/newLevelText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
@@ -49,11 +50,11 @@
         android:textSize="18sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tvLevelUpTitle" />
+        app:layout_constraintTop_toBottomOf="@+id/levelUpTitle" />
 
-    <!-- Divider -->
+    <!-- Separator line -->
     <View
-        android:id="@+id/divider"
+        android:id="@+id/dividerLine"
         android:layout_width="0dp"
         android:layout_height="1dp"
         android:layout_marginTop="16dp"
@@ -61,25 +62,26 @@
         android:alpha="0.3"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tvNewLevel" />
+        app:layout_constraintTop_toBottomOf="@+id/newLevelText" />
 
-    <!-- Rewards Title -->
     <TextView
-        android:id="@+id/tvRewardsTitle"
+        android:id="@+id/rewardsTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="18dp"
+        android:layout_marginStart="1dp"
         android:fontFamily="sans-serif-medium"
         android:text="Rewards Unlocked"
         android:textColor="@color/gold"
         android:textSize="18sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/divider" />
+        app:layout_constraintTop_toBottomOf="@+id/dividerLine" />
 
-    <!-- Card for Gold Reward -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cardGoldReward"
+    <!-- Rewards section -->
+    <!-- Changed layout from CardView to MaterialCardView for theme consistency -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/goldRewardCard"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
@@ -88,15 +90,17 @@
         app:cardElevation="4dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tvRewardsTitle">
+        app:layout_constraintTop_toBottomOf="@+id/rewardsTitle">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="12dp">
+            android:padding="12dp"
+            android:gravity="center_vertical">
 
             <ImageView
+                android:id="@+id/goldIcon"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:src="@drawable/ic_gold_coin"
@@ -105,10 +109,11 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
+                android:layout_marginStart="13dp"
                 android:orientation="vertical">
 
                 <TextView
+                    android:id="@+id/goldBonusLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-medium"
@@ -117,7 +122,7 @@
                     android:textSize="16sp" />
 
                 <TextView
-                    android:id="@+id/tvGoldAmount"
+                    android:id="@+id/goldAmount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="+50 gold coins"
@@ -125,29 +130,29 @@
                     android:textSize="14sp" />
             </LinearLayout>
         </LinearLayout>
-    </androidx.cardview.widget.CardView>
+    </com.google.android.material.card.MaterialCardView>
 
-    <!-- Card for Item Unlock -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cardItemUnlock"
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/itemUnlockCard"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="10dp"
         app:cardBackgroundColor="@color/taskItemCardBackground"
         app:cardCornerRadius="12dp"
         app:cardElevation="4dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/cardGoldReward">
+        app:layout_constraintTop_toBottomOf="@+id/goldRewardCard">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="12dp">
+            android:padding="12dp"
+            android:gravity="center_vertical">
 
             <ImageView
-                android:id="@+id/ivItemIcon"
+                android:id="@+id/itemIcon"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:src="@drawable/ic_item"
@@ -156,10 +161,11 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
+                android:layout_marginStart="13dp"
                 android:orientation="vertical">
 
                 <TextView
+                    android:id="@+id/itemUnlockTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-medium"
@@ -168,7 +174,7 @@
                     android:textSize="16sp" />
 
                 <TextView
-                    android:id="@+id/tvItemDescription"
+                    android:id="@+id/itemDesc"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Shop now has new tier items unlocked!"
@@ -176,14 +182,29 @@
                     android:textSize="14sp" />
             </LinearLayout>
         </LinearLayout>
-    </androidx.cardview.widget.CardView>
+    </com.google.android.material.card.MaterialCardView>
 
-    <!-- Continue Button -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnContinue"
+    <!-- XP bonus - Planned for future update 
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/xpBonusCard"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="10dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/taskItemCardBackground"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="4dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/itemUnlockCard">
+    </com.google.android.material.card.MaterialCardView>
+    -->
+
+    <Button
+        android:id="@+id/claimButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="22dp"
         android:backgroundTint="@color/welcome_accent"
         android:paddingVertical="12dp"
         android:text="Claim Rewards"
@@ -193,6 +214,6 @@
         app:cornerRadius="10dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/cardItemUnlock" />
+        app:layout_constraintTop_toBottomOf="@+id/itemUnlockCard" />
 
 </androidx.constraintlayout.widget.ConstraintLayout> 

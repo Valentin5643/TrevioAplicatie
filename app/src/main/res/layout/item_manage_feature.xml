@@ -14,7 +14,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:text="Feature Name"
-        android:textColor="@color/white" 
+        android:textColor="?attr/colorOnBackground" 
         android:textSize="18sp" />
 
     <androidx.appcompat.widget.SwitchCompat

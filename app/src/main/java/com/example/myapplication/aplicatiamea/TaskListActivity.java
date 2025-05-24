@@ -31,7 +31,11 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
 import android.content.Intent;
+import android.widget.ImageView;
 
+/**
+ * Main task list/calendar screen - shows tasks for each day and streak info.
+ */
 public class TaskListActivity extends AppCompatActivity {
     private final ArrayList<Task> tasks = new ArrayList<>();
     private TaskListAdapter adapter;
@@ -43,24 +47,25 @@ public class TaskListActivity extends AppCompatActivity {
     private LottieAnimationView flameAnimation;
     private TextView streakCounter;
     private StreakHelper streakHelper;
+    // Hardcoded for now - should pull from user settings eventually
     private final TimeZone userTimeZone = TimeZone.getTimeZone("Europe/Bucharest");
     private LottieAnimationView confettiView;
     private SharedPreferences prefs;
-    private FirebaseFirestore db; // Add Firestore instance variable
+    private FirebaseFirestore db;
     private String actualTodayDateString;
 
-    // Maps to track tasks in progress for anti-spam 
+    // Anti-spam protection to prevent task toggling too fast
     private final ConcurrentHashMap<String, Boolean> tasksInProgress = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Boolean> subtasksInProgress = new ConcurrentHashMap<>();
-    private static final long ANTI_SPAM_COOLDOWN = 2000; // 2 seconds cooldown
+    private static final long ANTI_SPAM_COOLDOWN = 2000; // 2 sec cooldown
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_task_list);
-        db = FirebaseFirestore.getInstance(); // Initialize Firestore
+        db = FirebaseFirestore.getInstance();
 
-        // Ensure daily and weekly quests are issued if needed
+        // Make sure user has daily and weekly quests
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser != null) {
             QuestManager qm = new QuestManager(currentUser.getUid(), this);
@@ -68,7 +73,7 @@ public class TaskListActivity extends AppCompatActivity {
             qm.issueWeeklyQuest();
         }
 
-        // Initialize the actual today date string (real calendar today)
+        // Figure out what today actually is (for UI highlighting)
         Calendar realToday = Calendar.getInstance(userTimeZone);
         realToday.set(Calendar.HOUR_OF_DAY, 0);
         realToday.set(Calendar.MINUTE, 0);
@@ -77,48 +82,60 @@ public class TaskListActivity extends AppCompatActivity {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         sdf.setTimeZone(userTimeZone);
         actualTodayDateString = sdf.format(realToday.getTime());
-        Log.d("TaskListActivity", "Actual today's date: " + actualTodayDateString);
-        // Initialize SharedPreferences for level tracking
+        Log.d("TaskListActivity", "Today is: " + actualTodayDateString);
+        
+        // Set up all the stuff
         prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
         currentDate = Calendar.getInstance(userTimeZone);
         currentDate.set(Calendar.HOUR_OF_DAY, 0);
         currentDate.set(Calendar.MINUTE, 0);
         currentDate.set(Calendar.SECOND, 0);
         currentDate.set(Calendar.MILLISECOND, 0);
+        
         initializeViews();
         setupFirebase();
         setupStreak();
         setupDateNavigation();
         loadInitialStreak();
-        // Recalculate streak on startup to include yesterday's completed tasks
+        
+        // Update streak including yesterday's tasks in case they 
+        // completed stuff after midnight
         recalcStreakOnStartup();
-        rvTasks = findViewById(R.id.rvTasks);
+        
+        // Set up the task list
+        rvTasks = findViewById(R.id.taskList);
         rvTasks.setLayoutManager(new LinearLayoutManager(this));
-        // Pass the list to the adapter
-        adapter = new TaskListAdapter(tasks, this, db, userTimeZone, actualTodayDateString, tasksInProgress, subtasksInProgress, ANTI_SPAM_COOLDOWN, streakHelper);
+        adapter = new TaskListAdapter(tasks, this, db, userTimeZone, actualTodayDateString, 
+                tasksInProgress, subtasksInProgress, ANTI_SPAM_COOLDOWN, streakHelper);
         rvTasks.setAdapter(adapter);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // Always refresh tasks when returning to this activity
+        // Refresh everything when user comes back to this screen
         refreshTasks();
-
-        // Also refresh points and streak display
         loadPoints();
-        updateStreakDisplay(); // Use the existing method to update streak UI
+        updateStreakDisplay();
     }
 
     private void initializeViews() {
-        flameAnimation = findViewById(R.id.flameAnimation);
+        flameAnimation = findViewById(R.id.streakIcon);
         streakCounter = findViewById(R.id.streakCounter);
         dateHeader = findViewById(R.id.dateHeader);
-        pointsCounter = findViewById(R.id.pointsCounter);
-        // Bind confetti view
+        pointsCounter = findViewById(R.id.pointsValue);
+        
+        // Confetti animation for level ups - hidden initially
         confettiView = findViewById(R.id.confettiView);
-        confettiView.setVisibility(View.GONE); // Initially hidden
-        flameAnimation.setVisibility(View.GONE); // Initially hidden
+        
+        // Add null checks before using the animation views
+        if (confettiView != null) {
+            confettiView.setVisibility(View.GONE);
+        }
+        
+        if (flameAnimation != null) {
+            flameAnimation.setVisibility(View.GONE);
+        }
     }
 
     private void setupFirebase() {
@@ -126,63 +143,69 @@ public class TaskListActivity extends AppCompatActivity {
         updateDateDisplay();
         loadTasksForDate(); // Load initial tasks
 
-        // Ensure user document exists with default fields
+        // Create/fix user document if needed
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser != null) {
             DocumentReference uref = db.collection("users").document(currentUser.getUid());
             uref.get().addOnSuccessListener(doc -> {
                 if (!doc.exists()) {
+                    // Brand new user, set up default fields
                     Map<String, Object> defaults = new HashMap<>();
-
-                    // Never create username automatically - it should come from signup
-
                     defaults.put("points", 0L);
                     defaults.put("streak", 0L);
                     defaults.put("xp", 0L);
                     defaults.put("level", 1L);
                     defaults.put("completedDates", new ArrayList<String>());
                     defaults.put("dailyBonusAwardedDates", new ArrayList<String>());
-                    // Add default activeEffects map if needed
                     defaults.put("activeEffects", new HashMap<String, Object>());
                     uref.set(defaults);
                 } else {
-                    // Username is handled during signup, not here
-
-                    // Clamp xp/level for existing users to avoid negative or missing values
+                    // Fix any issues with existing data
+                    // Username handled during signup, not here
+                    
+                    // Make sure XP and level can't be negative/missing
                     Long xpVal = doc.getLong("xp");
                     if (xpVal == null || xpVal < 0) {
                         uref.update("xp", 0L);
                     }
+                    
                     Long lvlVal = doc.getLong("level");
                     if (lvlVal == null || lvlVal < 1) {
                         uref.update("level", 1L);
                     }
-                    // Ensure activeEffects map exists
+                    
+                    // Add newer fields if missing
                     if (!doc.contains("activeEffects")) {
                         uref.update("activeEffects", new HashMap<String, Object>());
                     }
-                    // Ensure goldCoins exists
+                    
                     if (!doc.contains("goldCoins")) {
                         uref.update("goldCoins", 0L);
                     }
                 }
-                loadPoints(); // Load points after ensuring document exists/is updated
-            }).addOnFailureListener(e -> Log.e("SetupFirebase", "Error checking/creating user document", e));
+                
+                // Now load points once user doc is ready
+                loadPoints();
+            }).addOnFailureListener(e -> Log.e("TaskList", "Failed to setup user: " + e.getMessage()));
         }
 
-        // Quest issuance guards: only issue daily/weekly once per cycle
+        // Handle quest generation with guards
+        // We track this in prefs so we don't spam the server
         prefs = getSharedPreferences("quest_prefs", MODE_PRIVATE);
         if (currentUser != null) {
-            // First clean up all expired quests to keep the database tidy
+            // First clean up expired quests
             QuestManager questManager = new QuestManager(currentUser.getUid(), this);
             questManager.cleanupAllExpiredQuests();
             
+            // Generate daily quests if we haven't done it today
             int today = Calendar.getInstance(userTimeZone).get(Calendar.DAY_OF_YEAR);
             int lastDaily = prefs.getInt("lastDailyIssueDay", -1);
             if (lastDaily != today) {
                 questManager.issueDailyQuests();
                 prefs.edit().putInt("lastDailyIssueDay", today).apply();
             }
+            
+            // Same for weekly quests
             int thisWeek = Calendar.getInstance(userTimeZone).get(Calendar.WEEK_OF_YEAR);
             int lastWeekly = prefs.getInt("lastWeeklyIssueWeek", -1);
             if (lastWeekly != thisWeek) {
@@ -192,25 +215,27 @@ public class TaskListActivity extends AppCompatActivity {
         }
     }
 
-
+    // Show streak info when user taps on streak
     private void setupStreak() {
         streakCounter.setOnClickListener(v -> showStreakInfoDialog());
     }
 
+    // Previous/next day buttons and back button
     private void setupDateNavigation() {
-        findViewById(R.id.btnPrevDay).setOnClickListener(v -> navigateDay(-1));
-        findViewById(R.id.btnNextDay).setOnClickListener(v -> navigateDay(1));
-        findViewById(R.id.buttonBack).setOnClickListener(v -> finish());
+        findViewById(R.id.prevDayBtn).setOnClickListener(v -> navigateDay(-1));
+        findViewById(R.id.nextDayBtn).setOnClickListener(v -> navigateDay(1));
+        findViewById(R.id.backButton).setOnClickListener(v -> finish());
     }
 
+    // Move between days in the calendar
     private void navigateDay(int days) {
         currentDate.add(Calendar.DAY_OF_YEAR, days);
         updateDateDisplay();
-        refreshTasks(); // Reload tasks for the new date, but don't update streak
+        refreshTasks(); // Reload tasks for the new date
     }
 
+    // Reload tasks from Firebase
     private void refreshTasks() {
-        // Clear the local list and notify adapter before loading new data
         tasks.clear();
         if (adapter != null) {
             adapter.notifyDataSetChanged();
@@ -218,27 +243,29 @@ public class TaskListActivity extends AppCompatActivity {
         loadTasksForDate();
     }
 
-
+    // Update the date shown in the header
     private void updateDateDisplay() {
         SimpleDateFormat sdf = new SimpleDateFormat("EEE, MMM d yyyy", Locale.getDefault());
-        sdf.setTimeZone(userTimeZone); // Ensure correct timezone
+        sdf.setTimeZone(userTimeZone);
         dateHeader.setText(sdf.format(currentDate.getTime()));
     }
 
-    // Public method to get the current date as yyyy-MM-dd string
+    // Get the current date in YYYY-MM-DD format for Firebase queries
     public String getCurrentDateString() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-        sdf.setTimeZone(userTimeZone); // Use consistent timezone
+        sdf.setTimeZone(userTimeZone);
         return sdf.format(currentDate.getTime());
     }
 
+    // Load user points for the counter
     private void loadPoints() {
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser == null) {
-            Log.w("LoadPoints", "No current user.");
+            Log.w("TaskList", "No user logged in");
             pointsCounter.setText("Points: 0");
             return;
         }
+        
         String userId = currentUser.getUid();
         db.collection("users").document(userId)
                 .get().addOnSuccessListener(doc -> {
@@ -246,28 +273,30 @@ public class TaskListActivity extends AppCompatActivity {
                         Long pts = doc.getLong("points");
                         pointsCounter.setText("Points: " + (pts != null ? pts : 0));
                     } else {
-                        Log.w("LoadPoints", "User doc doesn't exist or missing points field for user: " + userId);
+                        Log.w("TaskList", "Missing points for user: " + userId);
                         pointsCounter.setText("Points: 0");
                     }
                 }).addOnFailureListener(e -> {
-                    Log.e("LoadPoints", "Failed to load points for user: " + userId, e);
+                    Log.e("TaskList", "Failed to load points for user: " + userId, e);
                     pointsCounter.setText("Points: Error");
                 });
     }
 
+    // Loads tasks for the current selected date
     private void loadTasksForDate() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) {
-            Log.w("LoadTasks", "No current user, cannot load tasks.");
-            return; // Can't load tasks without a user
+            Log.w("TaskList", "No user logged in, can't load tasks");
+            return;
         }
+        
         if (taskListener != null) {
-            taskListener.remove(); // Remove previous listener to avoid duplicates
+            taskListener.remove(); // Stop any previous listener
         }
 
-        // Determine current day range for timestamp query
+        // Get date range for the selected day
         String dateString = getCurrentDateString();
-        Log.d("LoadTasks", "Loading tasks for date: " + dateString);
+        Log.d("TaskList", "Loading tasks for: " + dateString);
 
         // Get calendar instances for timestamp comparison
         Calendar dayStart = (Calendar) currentDate.clone();
@@ -282,7 +311,7 @@ public class TaskListActivity extends AppCompatActivity {
         long dayStartMillis = dayStart.getTimeInMillis();
         long dayEndMillis = dayEnd.getTimeInMillis();
 
-        // Query tasks using a combination of date string and timestamp range
+        // Query tasks using date string or timestamp range
         db.collection("users")
                 .document(user.getUid())
                 .collection("tasks")
@@ -296,69 +325,51 @@ public class TaskListActivity extends AppCompatActivity {
                             if (task != null) {
                                 task.setId(doc.getId());
                                 
-                                                            // Explicitly retrieve and set the steps/subtasks with their completion status
-                            List<Map<String, Object>> rawSteps = (List<Map<String, Object>>) doc.get("steps");
-                            
-                            // [DEBUG] Log task details for debugging
-                            Log.d("DEBUG_SUBTASKS", "Processing task: " + task.getId() + 
-                                  ", Name: " + task.getName() + 
-                                  ", Date: " + task.getDate() + 
-                                  ", RecurrenceGroupId: " + task.getRecurrenceGroupId() +
-                                  ", RecurrenceDays: " + task.getRecurrenceDays() + 
-                                  ", Has 'steps' field: " + doc.contains("steps") + 
-                                  ", Raw steps size: " + (rawSteps != null ? rawSteps.size() : "null"));
-                            
-                            if (rawSteps != null && !rawSteps.isEmpty()) {
-                                List<Task.Subtask> subtasks = new ArrayList<>();
-                                for (Map<String, Object> stepMap : rawSteps) {
-                                    String description = (String) stepMap.get("description");
-                                    Boolean completed = (Boolean) stepMap.get("completed");
-                                    // Get the stability field, defaulting to 0 if not present
-                                    Number stabilityNumber = (Number) stepMap.get("stability");
-                                    int stability = stabilityNumber != null ? stabilityNumber.intValue() : 0;
-                                    
-                                    Task.Subtask subtask = new Task.Subtask(
-                                        description != null ? description : "",
-                                        completed != null ? completed : false,
-                                        stability
-                                    );
-                                    subtasks.add(subtask);
-                                }
-                                task.setSteps(subtasks);
-                                Log.d("DEBUG_SUBTASKS", "Loaded " + subtasks.size() + " subtasks for task: " + task.getId());
+                                // Read subtasks
+                                List<Map<String, Object>> rawSteps = (List<Map<String, Object>>) doc.get("steps");
                                 
-                                // Debug: Log subtask details
-                                for (int i = 0; i < subtasks.size(); i++) {
-                                    Task.Subtask subtask = subtasks.get(i);
-                                    Log.d("DEBUG_SUBTASKS", "  Subtask " + i + ": " + 
-                                          "description='" + subtask.getDescription() + "', " +
-                                          "completed=" + subtask.isCompleted() + ", " +
-                                          "stability=" + subtask.getStability());
-                                }
-                            } else {
-                                Log.d("DEBUG_SUBTASKS", "Task " + task.getId() + " has no steps or rawSteps is null/empty.");
+                                // Debug logging
+                                Log.d("TaskList", "Task: " + task.getId() + 
+                                      ", Name: " + task.getName() + 
+                                      ", Date: " + task.getDate() + 
+                                      ", RecurrenceID: " + task.getRecurrenceGroupId() +
+                                      ", HasSteps: " + doc.contains("steps"));
                                 
-                                // [FIX] Always initialize with empty list to prevent null pointer exceptions
-                                // This is especially important for recurring tasks where subtasks might be missing
-                                task.setSteps(new ArrayList<>());
-                            }
+                                if (rawSteps != null && !rawSteps.isEmpty()) {
+                                    List<Task.Subtask> subtasks = new ArrayList<>();
+                                    for (Map<String, Object> stepMap : rawSteps) {
+                                        String description = (String) stepMap.get("description");
+                                        Boolean completed = (Boolean) stepMap.get("completed");
+                                        Number stabilityNumber = (Number) stepMap.get("stability");
+                                        int stability = stabilityNumber != null ? stabilityNumber.intValue() : 0;
+                                        
+                                        Task.Subtask subtask = new Task.Subtask(
+                                            description != null ? description : "",
+                                            completed != null ? completed : false,
+                                            stability
+                                        );
+                                        subtasks.add(subtask);
+                                    }
+                                    task.setSteps(subtasks);
+                                } else {
+                                    // Always initialize with empty list
+                                    task.setSteps(new ArrayList<>());
+                                }
 
-                                // Check if this task belongs on this day (either by date string or timestamp)
+                                // Check if task belongs to this day
                                 boolean belongsOnThisDay = false;
 
-                                // First check the date string
+                                // First check by date string
                                 if (dateString.equals(task.getDate())) {
                                     belongsOnThisDay = true;
                                 }
-                                // Then check deadline timestamp (in case date string is missing or incorrect)
+                                // Then check by deadline timestamp
                                 else if (task.getDeadlineTimestamp() > 0) {
-                                    // Check if deadline falls within this day's range
                                     if (task.getDeadlineTimestamp() >= dayStartMillis &&
                                             task.getDeadlineTimestamp() < dayEndMillis) {
 
-                                        // If there's a mismatch, update the task's date field for consistency
+                                        // Fix date field if timestamp doesn't match
                                         if (!dateString.equals(task.getDate())) {
-                                            Log.d("TaskList", "Fixing task date field for task: " + task.getId());
                                             doc.getReference().update("date", dateString);
                                             task.setDate(dateString);
                                         }
@@ -368,51 +379,40 @@ public class TaskListActivity extends AppCompatActivity {
                                 }
 
                                 if (belongsOnThisDay) {
-                                    // [DEBUG] Log task being added to display
-                                    Log.d("DEBUG_SUBTASKS", "Adding task to display: " + task.getId() + 
-                                         ", Name: " + task.getName() +
-                                         ", RecurrenceGroupId: " + task.getRecurrenceGroupId() +
-                                         ", RecurrenceDays: " + task.getRecurrenceDays() +
-                                         ", Subtasks count: " + (task.getSteps() != null ? task.getSteps().size() : "null"));
-                                    
                                     newTasks.add(task);
-                                } else {
-                                    Log.d("DEBUG_SUBTASKS", "Task NOT added to display: " + task.getId() + 
-                                         " - Does not belong to day: " + dateString);
                                 }
                             }
                         } catch (Exception e) {
-                            Log.e("LoadTasks", "Error converting document to Task object: " + doc.getId(), e);
+                            Log.e("TaskList", "Error processing task: " + doc.getId(), e);
                         }
                     }
 
-                    // Sort tasks by priority (HIGH to LOW) first, then by time
+                    // Sort tasks by priority (HIGH to LOW) then by time
                     Collections.sort(newTasks, (t1, t2) -> {
-                        // First compare by priority (higher priority first)
+                        // Compare by priority (higher priority first)
                         String priority1 = t1.getPriority();
                         String priority2 = t2.getPriority();
                         
-                        // Default to MEDIUM if priority is null
+                        // Default to MEDIUM if missing
                         if (priority1 == null) priority1 = Task.TaskPriority.MEDIUM.name();
                         if (priority2 == null) priority2 = Task.TaskPriority.MEDIUM.name();
                         
-                        // Get priority values for comparison (HIGH=3, MEDIUM=2, LOW=1)
+                        // Get priority values (HIGH=3, MEDIUM=2, LOW=1)
                         int p1Value = 0, p2Value = 0;
                         try {
                             p1Value = Task.TaskPriority.valueOf(priority1).getValue();
                             p2Value = Task.TaskPriority.valueOf(priority2).getValue();
                         } catch (IllegalArgumentException e) {
-                            Log.w("LoadTasks", "Invalid priority value: " + e.getMessage());
+                            Log.w("TaskList", "Invalid priority: " + e.getMessage());
                         }
                         
                         int priorityCompare = Integer.compare(p2Value, p1Value); // Descending order
                         
                         if (priorityCompare != 0) {
-                            // If priorities are different, return that comparison
                             return priorityCompare;
                         }
                         
-                        // If priorities are the same, then sort by timestamp/deadline
+                        // If same priority, sort by deadline
                         if (t1.getDeadlineTimestamp() == 0 && t2.getDeadlineTimestamp() == 0) {
                             return 0; // Both have no time
                         } else if (t1.getDeadlineTimestamp() == 0) {
@@ -424,34 +424,23 @@ public class TaskListActivity extends AppCompatActivity {
                         }
                     });
 
-                    // Log sorted tasks for debugging
-                    for (Task task : newTasks) {
-                        Log.d("LoadTasks", "Sorted task: " + task.getName() + 
-                                          ", Priority: " + task.getPriority() + 
-                                          ", Deadline: " + task.getDeadlineTimestamp());
-                    }
+                    Log.d("TaskList", "Loaded " + newTasks.size() + " tasks for " + dateString);
 
-                    Log.d("LoadTasks", "Loaded " + newTasks.size() + " tasks for " + dateString);
-
-                    // Update the adapter's list and notify
+                    // Update the adapter's list
                     tasks.clear();
                     tasks.addAll(newTasks);
                     if (adapter != null) {
                         adapter.notifyDataSetChanged();
 
-                        // Only check and update streak for the actual current day
-                        // not for past or future days being viewed
+                        // Check if we're viewing today and update streak
                         if (dateString.equals(actualTodayDateString)) {
-                            // Re-evaluate daily completion now that tasks have loaded (handles subtasks)
                             adapter.updateCompletedDates(currentDate.getTimeInMillis());
                         }
-                    } else {
-                        Log.w("LoadTasks", "Adapter is null after loading tasks.");
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Log.e("LoadTasks", "Error loading tasks: ", e);
-                    Toast.makeText(this, "Error loading tasks.", Toast.LENGTH_SHORT).show();
+                    Log.e("TaskList", "Error loading tasks: ", e);
+                    Toast.makeText(this, "Error loading tasks", Toast.LENGTH_SHORT).show();
                 });
     }
 

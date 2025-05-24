@@ -2,12 +2,12 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
+    android:id="@+id/homeRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".LoggedInActivity">
 
-    <!-- Layered Background -->
+    <!-- Background with reduced layering -->
     <View
         android:id="@+id/backgroundGradient"
         android:layout_width="0dp"
@@ -18,19 +18,19 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Top Bar with Logout -->
+    <!-- Pattern overlay with adjusted alpha -->
     <View
         android:id="@+id/patternOverlay"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="@drawable/welcome_pattern_overlay"
+        android:alpha="0.83"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.0" />
+        app:layout_constraintTop_toTopOf="parent" />
 
+    <!-- Logout button - natural position -->
     <Button
         android:id="@+id/btnLogout"
         style="@style/Widget.MaterialComponents.Button.TextButton"
@@ -39,50 +39,72 @@
         android:text="Logout"
         android:textColor="@color/white"
         android:alpha="0.8"
-        android:layout_margin="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="14dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- Center Logo -->
+    <!-- Theme toggle button - slightly different sizing -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnToggleTheme"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton.Icon"
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:layout_marginStart="15dp"
+        android:layout_marginTop="16dp"
+        app:icon="@drawable/ic_theme_light"
+        app:iconTint="@color/white"
+        app:iconGravity="textStart"
+        app:iconPadding="0dp"
+        app:cornerRadius="23dp"
+        app:strokeColor="@color/white"
+        app:strokeWidth="1dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Logo slightly offset -->
     <ImageView
         android:id="@+id/logoImage"
-        android:layout_width="200dp"
-        android:layout_height="80dp"
-        android:layout_marginTop="48dp"
+        android:layout_width="192dp"
+        android:layout_height="78dp"
+        android:layout_marginTop="46dp"
+        android:layout_marginStart="4dp"
         android:contentDescription="Trevio Logo"
         android:src="@drawable/ic_trevio_logo"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Welcome Message -->
+    <!-- Welcome message with slight asymmetry -->
     <TextView
         android:id="@+id/welcomeText"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:layout_marginHorizontal="32dp"
+        android:layout_marginTop="28dp"
+        android:layout_marginStart="36dp"
+        android:layout_marginEnd="32dp"
         android:fontFamily="sans-serif-medium"
         android:gravity="center"
         android:text="Welcome back!"
-        android:textAlignment="center"
-        android:textColor="@android:color/white"
+        android:textColor="@color/white"
         android:textSize="32sp"
         android:letterSpacing="0.05"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/logoImage" />
 
-    <!-- Main Card -->
+    <!-- Main menu card - less perfect positioning -->
     <androidx.cardview.widget.CardView
         android:id="@+id/mainCard"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="32dp"
-        android:layout_marginBottom="48dp"
-        app:cardBackgroundColor="@color/white"
-        app:cardCornerRadius="24dp"
-        app:cardElevation="8dp"
+        android:layout_marginBottom="52dp"
+        android:layout_marginStart="34dp"
+        android:layout_marginEnd="30dp"
+        app:cardBackgroundColor="?attr/colorSurface"
+        app:cardCornerRadius="22dp"
+        app:cardElevation="6dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
@@ -91,54 +113,60 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="24dp">
+            android:paddingStart="24dp"
+            android:paddingEnd="22dp"
+            android:paddingTop="25dp"
+            android:paddingBottom="22dp">
 
+            <!-- Create task button - slightly different style -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button4"
                 style="@style/Widget.MaterialComponents.Button"
                 android:layout_width="match_parent"
-                android:layout_height="64dp"
+                android:layout_height="62dp"
                 android:text="@string/create_task"
                 android:textSize="16sp"
-                app:cornerRadius="16dp"
+                app:cornerRadius="15dp"
                 app:icon="@drawable/ic_add"
                 app:iconGravity="textStart"
                 app:iconPadding="16dp"
                 app:iconSize="24dp"
-                app:iconTint="@android:color/white"
+                app:iconTint="?attr/colorOnPrimary"
                 android:backgroundTint="?attr/colorSecondary" />
 
+            <!-- View tasks button - slightly different sizing -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonTasks"
                 style="@style/Widget.MaterialComponents.Button"
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="15dp"
                 android:text="@string/view_tasks"
                 android:textSize="16sp"
                 app:cornerRadius="16dp"
                 app:icon="@drawable/ic_list"
                 app:iconGravity="textStart"
-                app:iconPadding="16dp"
+                app:iconPadding="15dp"
                 app:iconSize="24dp"
-                app:iconTint="@android:color/white"
+                app:iconTint="?attr/colorOnPrimary"
                 android:backgroundTint="?attr/colorPrimary" />
 
+            <!-- Adventure hub button - slightly different radii -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnAdventureHub"
                 style="@style/Widget.MaterialComponents.Button"
                 android:layout_width="match_parent"
-                android:layout_height="64dp"
+                android:layout_height="63dp"
                 android:layout_marginTop="16dp"
                 android:text="@string/adventure_hub"
                 android:textSize="16sp"
-                app:cornerRadius="16dp"
+                app:cornerRadius="17dp"
                 app:icon="@drawable/ic_star"
                 app:iconGravity="textStart"
                 app:iconPadding="16dp"
                 app:iconSize="24dp"
-                app:iconTint="@android:color/white"
-                android:backgroundTint="#673AB7" />
+                app:iconTint="?attr/colorOnPrimary"
+                android:backgroundTint="?attr/colorPrimary" />
 
         </LinearLayout>
     </androidx.cardview.widget.CardView>

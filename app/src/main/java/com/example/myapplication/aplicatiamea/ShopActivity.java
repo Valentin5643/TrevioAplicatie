@@ -14,6 +14,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import java.util.ArrayList;
 import java.util.List;
 import android.widget.ImageView;
+import com.example.myapplication.aplicatiamea.util.ThemeHelper;
 
 import com.google.firebase.firestore.DocumentReference;
 import java.util.Map;
@@ -43,137 +44,136 @@ import androidx.core.graphics.Insets;
 public class ShopActivity extends Activity {
     private static final String TAG = "ShopActivity";
     
-    private Button buttonBackShop;
-    private TextView tvGoldCoins;
-    private RecyclerView recyclerViewAllItems;
+    // UI elements
+    private Button backBtn;
+    private TextView coinsTv;
+    private RecyclerView itemsRv;
     private List<ShopItem> items = new ArrayList<>();
     private Map<String, ShopItem> itemCatalog = new HashMap<>();
     private ShopAdapter adapter;
-    private ImageView ivSlotChestplate;
+    
+    // Avatar views
+    private ImageView avatarBase;
+    private ImageView avatarArmor;
+    private ImageView avatarWeapon;
+    private ImageView avatarHelmet;
+    private ImageView avatarGreaves; 
+    private ImageView avatarBoots;
+    
+    // Equipment slots
+    private ImageView slotArmor;
+    private ImageView slotWeapon;
+    private ImageView slotHelmet;
+    private ImageView slotGreaves;
+    private ImageView slotBoots;
+    
+    // Firebase
     private FirebaseFirestore db;
     private FirebaseAuth auth;
-    private ImageView ivAvatarBase;
-    private ImageView ivAvatarChestplate;
-    private ImageView ivAvatarWeapon;
-    private ImageView ivSlotWeapon;
-    private ImageView ivSlotHelmet;
-    private ImageView ivAvatarHelmet;
-    private ImageView ivSlotGreaves;
-    private ImageView ivAvatarGreaves;
-    private ImageView ivSlotBoots;
-    private ImageView ivAvatarBoots;
     private DocumentReference userRef;
-    // Track the last date the shop was generated to reset daily
+    
+    // Shop state
     private String lastShopDate;
     private boolean shopDateLoaded = false;
     private boolean pendingResume = false;
-    private List<ShopItem> currentShopList = null; // Cache the generated shop list
+    private List<ShopItem> currentShopList = null; // Today's generated shop
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        // Theme stuff first
+        ThemeHelper.applyUserTheme(this);
+        
         super.onCreate(savedInstanceState);
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false); // Enable edge-to-edge
+        
+        // Full-screen goodness
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_shop);
 
-        View rootLayout = findViewById(R.id.rootLayoutShop);
-        View contentArea = findViewById(R.id.contentAreaShop); // Target content area
+        // Handle edge-to-edge display with insets
+        View rootLayout = findViewById(R.id.shopRoot);
+        // Content area was removed in our flattened layout
+        // View contentArea = findViewById(R.id.contentAreaShop);
 
         ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, windowInsets) -> {
             Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
-            // Apply padding to the content area
-            contentArea.setPadding(insets.left, insets.top, insets.right, insets.bottom);
+            // Apply padding to the root layout instead since we flattened the hierarchy
+            rootLayout.setPadding(insets.left, insets.top, insets.right, insets.bottom);
             return WindowInsetsCompat.CONSUMED;
         });
         
-        // Fix for Google Play Services security exception
+        // Fix Google Play SSL issues (sometimes fails but app works anyway)
         try {
             ProviderInstaller.installIfNeeded(this);
         } catch (GooglePlayServicesRepairableException e) {
-            // Prompt the user to install/update/enable Google Play services
             GoogleApiAvailability.getInstance()
                     .showErrorNotification(this, e.getConnectionStatusCode());
         } catch (GooglePlayServicesNotAvailableException e) {
-            // Handle the exception
+            // Whatever...
             Toast.makeText(this, "Google Play Services not available", Toast.LENGTH_SHORT).show();
         }
         
-        // Initialize views
-        tvGoldCoins = findViewById(R.id.tvGoldCoins);
-        recyclerViewAllItems = findViewById(R.id.recyclerViewAllItems);
-        ivAvatarBase = findViewById(R.id.ivAvatarBase);
-        ivAvatarChestplate = findViewById(R.id.ivAvatarChestplate);
-        ivAvatarWeapon = findViewById(R.id.ivAvatarWeapon);
-        ivSlotChestplate = findViewById(R.id.ivSlotChestplate);
-        ivSlotWeapon = findViewById(R.id.ivSlotWeapon);
-        buttonBackShop = findViewById(R.id.buttonBackShop);
-        ivSlotHelmet = findViewById(R.id.ivSlotHelmet);
-        ivAvatarHelmet = findViewById(R.id.ivAvatarHelmet);
-        ivSlotGreaves = findViewById(R.id.ivSlotGreaves);
-        ivAvatarGreaves = findViewById(R.id.ivAvatarGreaves);
-        ivSlotBoots = findViewById(R.id.ivSlotBoots);
-        ivAvatarBoots = findViewById(R.id.ivAvatarBoots);
+        // Find all our views
+        findViews();
         
         // Set up back button
-        buttonBackShop.setOnClickListener(v -> finish());
+        backBtn.setOnClickListener(v -> finish());
 
-        // Initialize Firebase
+        // Firebase setup
         db = FirebaseFirestore.getInstance();
         auth = FirebaseAuth.getInstance();
-        FirebaseUser currentUser = auth.getCurrentUser();
+        FirebaseUser user = auth.getCurrentUser();
 
-        if (currentUser == null) {
+        if (user == null) {
             Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
 
-        // Initialize items list and catalog
+        // Load shop items catalog
         initializeItems();
 
-        // Initialize user reference
-        userRef = db.collection("users").document(currentUser.getUid());
+        // Set up reference to user doc
+        userRef = db.collection("users").document(user.getUid());
         
-        // Initialize adapter with empty list
+        // Set up RecyclerView with adapter
         adapter = new ShopAdapter(this, new ArrayList<>(), userRef);
+        itemsRv.setLayoutManager(new LinearLayoutManager(this));
+        itemsRv.setAdapter(adapter);
         
-        // Set up RecyclerView
-        recyclerViewAllItems.setLayoutManager(new LinearLayoutManager(this));
-        recyclerViewAllItems.setAdapter(adapter);
-        
-        // Add decoration for spacing between items
-        recyclerViewAllItems.addItemDecoration(new RecyclerView.ItemDecoration() {
+        // Add spacing between items
+        itemsRv.addItemDecoration(new RecyclerView.ItemDecoration() {
             @Override
             public void getItemOffsets(@NonNull Rect outRect, @NonNull View view, 
                                       @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
-                outRect.bottom = 8; // Add some space between items
+                outRect.bottom = 8; // 8dp gap
             }
         });
 
-        // Initialize default placeholder images
-        ivSlotWeapon.setImageResource(R.drawable.placeholder_weapon);
-        ivSlotChestplate.setImageResource(R.drawable.placeholder_chestplate);
+        // Set default equipment slot images
+        slotWeapon.setImageResource(R.drawable.placeholder_weapon);
+        slotArmor.setImageResource(R.drawable.placeholder_chestplate);
 
-        // Set up click listeners for equipment slots to unequip items
+        // Equipment slot unequip listeners
         setupEquipmentSlotClickListeners();
         
-        // Load user data (initial load and listener setup)
+        // Load initial data and set up listeners
         loadInitialUserDataAndSetupListener();
 
-        // Load lastShopDate from Firestore
-        userRef.get().addOnSuccessListener(documentSnapshot -> {
-            if (documentSnapshot.exists() && documentSnapshot.contains("lastShopDate")) {
-                lastShopDate = documentSnapshot.getString("lastShopDate");
+        // Load shop date state
+        userRef.get().addOnSuccessListener(doc -> {
+            if (doc.exists() && doc.contains("lastShopDate")) {
+                lastShopDate = doc.getString("lastShopDate");
             } else {
                 lastShopDate = null;
             }
             shopDateLoaded = true;
+            
             if (pendingResume) {
                 pendingResume = false;
-                checkShopReset(); // This might trigger recreate() if date changed
+                checkShopReset(); // Might trigger recreate() if date changed
             } else {
-                 // If not resuming and date is current, ensure shop list is generated if needed
                  if (currentShopList == null) {
-                    generateDailyShopAndInventory(documentSnapshot);
+                    generateDailyShopAndInventory(doc);
                  }
             }
         }).addOnFailureListener(e -> {
@@ -184,6 +184,24 @@ public class ShopActivity extends Activity {
                 checkShopReset();
             }
         });
+    }
+    
+    // Initialize all the view references
+    private void findViews() {
+        coinsTv = findViewById(R.id.coinsTv);
+        itemsRv = findViewById(R.id.itemsRecyclerView);
+        avatarBase = findViewById(R.id.ivAvatarBase);
+        avatarArmor = findViewById(R.id.ivAvatarChestplate);
+        avatarWeapon = findViewById(R.id.ivAvatarWeapon);
+        slotArmor = findViewById(R.id.ivSlotChestplate);
+        slotWeapon = findViewById(R.id.ivSlotWeapon);
+        backBtn = findViewById(R.id.backBtn);
+        slotHelmet = findViewById(R.id.ivSlotHelmet);
+        avatarHelmet = findViewById(R.id.ivAvatarHelmet);
+        slotGreaves = findViewById(R.id.ivSlotGreaves);
+        avatarGreaves = findViewById(R.id.ivAvatarGreaves);
+        slotBoots = findViewById(R.id.ivSlotBoots);
+        avatarBoots = findViewById(R.id.ivAvatarBoots);
     }
 
     @Override
@@ -221,32 +239,32 @@ public class ShopActivity extends Activity {
 
     private void setupEquipmentSlotClickListeners() {
         // Click listener for chestplate slot
-        ivSlotChestplate.setOnClickListener(v -> {
-            if (ivAvatarChestplate.getVisibility() == View.VISIBLE) {
+        slotArmor.setOnClickListener(v -> {
+            if (avatarArmor.getVisibility() == View.VISIBLE) {
                 unequipItem("armor");
             }
         });
         // Click listener for weapon slot
-        ivSlotWeapon.setOnClickListener(v -> {
-            if (ivAvatarWeapon.getVisibility() == View.VISIBLE) {
+        slotWeapon.setOnClickListener(v -> {
+            if (avatarWeapon.getVisibility() == View.VISIBLE) {
                 unequipItem("weapon");
             }
         });
         // Click listener for helmet slot
-        ivSlotHelmet.setOnClickListener(v -> {
-            if (ivAvatarHelmet.getVisibility() == View.VISIBLE) {
+        slotHelmet.setOnClickListener(v -> {
+            if (avatarHelmet.getVisibility() == View.VISIBLE) {
                 unequipItem("helmet");
             }
         });
         // Click listener for greaves slot
-        ivSlotGreaves.setOnClickListener(v -> {
-            if (ivAvatarGreaves.getVisibility() == View.VISIBLE) {
+        slotGreaves.setOnClickListener(v -> {
+            if (avatarGreaves.getVisibility() == View.VISIBLE) {
                 unequipItem("greaves");
             }
         });
         // Click listener for boots slot
-        ivSlotBoots.setOnClickListener(v -> {
-            if (ivAvatarBoots.getVisibility() == View.VISIBLE) {
+        slotBoots.setOnClickListener(v -> {
+            if (avatarBoots.getVisibility() == View.VISIBLE) {
                 unequipItem("boots");
             }
         });
@@ -534,7 +552,7 @@ public class ShopActivity extends Activity {
             .addSnapshotListener((docSnap, error) -> {
                 if (docSnap != null && docSnap.exists()) {
                     Long coins = docSnap.getLong("goldCoins");
-                    tvGoldCoins.setText("Coins: " + (coins != null ? coins : 0));
+                    coinsTv.setText("Coins: " + (coins != null ? coins : 0));
                 }
             });
     }
@@ -562,7 +580,7 @@ public class ShopActivity extends Activity {
                 
                 // Update non-list UI elements that might change often
                 Long coins = docSnap.getLong("goldCoins");
-                tvGoldCoins.setText("Coins: " + (coins != null ? coins : 0));
+                coinsTv.setText("Coins: " + (coins != null ? coins : 0));
                 updateCharacterVisuals(docSnap); // Extracted character/slot visual updates
 
             } else {
@@ -827,7 +845,7 @@ public class ShopActivity extends Activity {
         adapter.setInventory(invMap); // Pass the latest inventory map
 
         // Update the empty message visibility based on adapter content
-        TextView tvItemsEmpty = findViewById(R.id.tvItemsEmpty);
+        TextView tvItemsEmpty = findViewById(R.id.emptyItemsTv);
         if (tvItemsEmpty != null) {
             tvItemsEmpty.setVisibility(adapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
         }
@@ -854,7 +872,7 @@ public class ShopActivity extends Activity {
                   } else {
                       resToUse = charResLong.intValue();
                   }
-                  ivAvatarBase.setImageResource(resToUse);
+                  avatarBase.setImageResource(resToUse);
                   
                   String resName = "";
                   for (Field f : fields) {
@@ -907,17 +925,17 @@ public class ShopActivity extends Activity {
               if (equippedArmor != null) {
                   int resId = getResources().getIdentifier(armorId, "drawable", getPackageName());
                   if (resId != 0) {
-                      ivAvatarChestplate.setImageResource(resId);
-                      ivAvatarChestplate.setVisibility(View.VISIBLE);
-                      ivSlotChestplate.setImageResource(resId);
+                      avatarArmor.setImageResource(resId);
+                      avatarArmor.setVisibility(View.VISIBLE);
+                      slotArmor.setImageResource(resId);
                   }
               } else {
-                  ivAvatarChestplate.setVisibility(View.GONE);
-                  ivSlotChestplate.setImageResource(R.drawable.placeholder_chestplate);
+                  avatarArmor.setVisibility(View.GONE);
+                  slotArmor.setImageResource(R.drawable.placeholder_chestplate);
               }
           } else {
-              ivAvatarChestplate.setVisibility(View.GONE);
-              ivSlotChestplate.setImageResource(R.drawable.placeholder_chestplate);
+              avatarArmor.setVisibility(View.GONE);
+              slotArmor.setImageResource(R.drawable.placeholder_chestplate);
           }
           // Weapon
           if (weaponId != null) {
@@ -926,18 +944,18 @@ public class ShopActivity extends Activity {
                   if (!weaponId.equals("placeholder_weapon")) {
                       int resId = getResources().getIdentifier(weaponId, "drawable", getPackageName());
                       if (resId != 0) {
-                          ivAvatarWeapon.setImageResource(resId);
-                          ivAvatarWeapon.setVisibility(View.VISIBLE);
-                          ivSlotWeapon.setImageResource(resId);
+                          avatarWeapon.setImageResource(resId);
+                          avatarWeapon.setVisibility(View.VISIBLE);
+                          slotWeapon.setImageResource(resId);
                       }
                   }
               } else {
-                  ivAvatarWeapon.setVisibility(View.GONE);
-                  ivSlotWeapon.setImageResource(R.drawable.placeholder_weapon);
+                  avatarWeapon.setVisibility(View.GONE);
+                  slotWeapon.setImageResource(R.drawable.placeholder_weapon);
               }
           } else {
-              ivAvatarWeapon.setVisibility(View.GONE);
-              ivSlotWeapon.setImageResource(R.drawable.placeholder_weapon);
+              avatarWeapon.setVisibility(View.GONE);
+              slotWeapon.setImageResource(R.drawable.placeholder_weapon);
           }
           // Helmet
           if (helmetId != null) {
@@ -945,17 +963,17 @@ public class ShopActivity extends Activity {
               if (equippedHelmet != null) {
                   @SuppressLint("DiscouragedApi") int resId = getResources().getIdentifier(helmetId, "drawable", getPackageName());
                   if (resId != 0) {
-                      ivAvatarHelmet.setImageResource(resId);
-                      ivAvatarHelmet.setVisibility(View.VISIBLE);
-                      ivSlotHelmet.setImageResource(resId);
+                      avatarHelmet.setImageResource(resId);
+                      avatarHelmet.setVisibility(View.VISIBLE);
+                      slotHelmet.setImageResource(resId);
                   }
               } else {
-                  ivAvatarHelmet.setVisibility(View.GONE);
-                  ivSlotHelmet.setImageResource(R.drawable.placeholder_helmet);
+                  avatarHelmet.setVisibility(View.GONE);
+                  slotHelmet.setImageResource(R.drawable.placeholder_helmet);
               }
           } else {
-              ivAvatarHelmet.setVisibility(View.GONE);
-              ivSlotHelmet.setImageResource(R.drawable.placeholder_helmet);
+              avatarHelmet.setVisibility(View.GONE);
+              slotHelmet.setImageResource(R.drawable.placeholder_helmet);
           }
           // Greaves
           if (greavesId != null) {
@@ -963,17 +981,17 @@ public class ShopActivity extends Activity {
               if (equippedGreaves != null) {
                   @SuppressLint("DiscouragedApi") int resId = getResources().getIdentifier(greavesId, "drawable", getPackageName());
                   if (resId != 0) {
-                      ivAvatarGreaves.setImageResource(resId);
-                      ivAvatarGreaves.setVisibility(View.VISIBLE);
-                      ivSlotGreaves.setImageResource(resId);
+                      avatarGreaves.setImageResource(resId);
+                      avatarGreaves.setVisibility(View.VISIBLE);
+                      slotGreaves.setImageResource(resId);
                   }
               } else {
-                  ivAvatarGreaves.setVisibility(View.GONE);
-                  ivSlotGreaves.setImageResource(R.drawable.placeholder_greaves);
+                  avatarGreaves.setVisibility(View.GONE);
+                  slotGreaves.setImageResource(R.drawable.placeholder_greaves);
               }
           } else {
-              ivAvatarGreaves.setVisibility(View.GONE);
-              ivSlotGreaves.setImageResource(R.drawable.placeholder_greaves);
+              avatarGreaves.setVisibility(View.GONE);
+              slotGreaves.setImageResource(R.drawable.placeholder_greaves);
           }
           // Boots
           if (bootsId != null) {
@@ -981,17 +999,17 @@ public class ShopActivity extends Activity {
               if (equippedBoots != null) {
                   @SuppressLint("DiscouragedApi") int resId = getResources().getIdentifier(bootsId, "drawable", getPackageName());
                   if (resId != 0) {
-                      ivAvatarBoots.setImageResource(resId);
-                      ivAvatarBoots.setVisibility(View.VISIBLE);
-                      ivSlotBoots.setImageResource(resId);
+                      avatarBoots.setImageResource(resId);
+                      avatarBoots.setVisibility(View.VISIBLE);
+                      slotBoots.setImageResource(resId);
                   }
               } else {
-                  ivAvatarBoots.setVisibility(View.GONE);
-                  ivSlotBoots.setImageResource(R.drawable.placeholder_boots);
+                  avatarBoots.setVisibility(View.GONE);
+                  slotBoots.setImageResource(R.drawable.placeholder_boots);
               }
           } else {
-              ivAvatarBoots.setVisibility(View.GONE);
-              ivSlotBoots.setImageResource(R.drawable.placeholder_boots);
+              avatarBoots.setVisibility(View.GONE);
+              slotBoots.setImageResource(R.drawable.placeholder_boots);
           }
     }
 

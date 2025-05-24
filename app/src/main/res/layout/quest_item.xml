@@ -7,9 +7,10 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp"
-    app:cardBackgroundColor="@color/quest_dark_background"
-    app:strokeColor="@color/quest_card_stroke"
-    app:strokeWidth="1dp">
+    app:cardBackgroundColor="?attr/colorSurface"
+    app:strokeColor="?attr/colorOutline"
+    app:strokeWidth="1dp"
+    app:cardCornerRadius="12dp">
     
     <LinearLayout
         android:layout_width="match_parent"
@@ -23,7 +24,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="16sp"
-            android:textColor="@color/quest_card_text"
+            android:textColor="?attr/colorOnSurface"
             tools:text="Complete 5 Tasks" />
 
         <TextView
@@ -32,7 +33,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:textColor="@color/welcome_text_secondary"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:visibility="visible"
             android:ellipsize="end"
             android:maxLines="3"
@@ -42,19 +43,19 @@
             android:id="@+id/questProgressBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="15dp"
             android:progress="60"
             android:max="100"
             app:trackThickness="8dp"
             app:trackCornerRadius="4dp"
-            app:indicatorColor="@color/welcome_accent"
-            app:trackColor="@color/welcome_card_stroke" />
+            app:indicatorColor="?attr/colorPrimary"
+            app:trackColor="?attr/colorOutline" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="8dp">
+            android:layout_marginTop="9dp">
 
             <TextView
                 android:id="@+id/questProgressText"
@@ -63,7 +64,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_gravity="center_vertical"
-                android:textColor="@color/welcome_text_secondary"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 tools:text="3 of 5 completed" />
 
             <com.google.android.material.button.MaterialButton
@@ -72,6 +73,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Claim"
+                android:textColor="?attr/colorOnPrimary"
+                android:backgroundTint="?attr/colorPrimary"
                 android:minWidth="0dp"
                 android:paddingHorizontal="16dp"
                 android:visibility="gone"

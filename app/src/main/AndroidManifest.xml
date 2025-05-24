@@ -19,7 +19,7 @@
         android:label="@string/Trevio"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AplicatiaMea"
+        android:theme="@style/Theme.TrevioApp"
         tools:targetApi="31">
 
         <!-- Add exported attributes to all activities -->
@@ -31,6 +31,9 @@
             android:exported="false" />
         <activity
             android:name=".SelectRecurrenceActivity"
+            android:exported="false" />
+        <activity
+            android:name=".SelectReminderActivity"
             android:exported="false" />
         <activity
             android:name=".LoggedInActivity"

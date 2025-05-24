@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -25,7 +26,7 @@ public class LevelUpDialog extends Dialog {
     private TextView tvNewLevel;
     private TextView tvGoldAmount;
     private TextView tvItemDescription;
-    private MaterialButton btnContinue;
+    private Button btnContinue;
     private OnRewardClaimedListener listener;
 
     /**
@@ -57,10 +58,10 @@ public class LevelUpDialog extends Dialog {
         getWindow().setGravity(Gravity.CENTER);
         
         // Initialize views
-        tvNewLevel = findViewById(R.id.tvNewLevel);
-        tvGoldAmount = findViewById(R.id.tvGoldAmount);
-        tvItemDescription = findViewById(R.id.tvItemDescription);
-        btnContinue = findViewById(R.id.btnContinue);
+        tvNewLevel = findViewById(R.id.newLevelText);
+        tvGoldAmount = findViewById(R.id.goldAmount);
+        tvItemDescription = findViewById(R.id.itemDesc);
+        btnContinue = findViewById(R.id.claimButton);
         
         // Set level text
         tvNewLevel.setText("You've reached level " + newLevel + "!");

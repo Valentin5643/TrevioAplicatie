@@ -7,14 +7,18 @@
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp">
 
+    <!-- Main task content -->
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/taskItemContainer"
+        android:id="@+id/taskContent"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:paddingStart="15dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="15dp">
 
         <com.google.android.material.checkbox.MaterialCheckBox
-            android:id="@+id/cbTaskCompleted"
+            android:id="@+id/taskCompletedCheckbox"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:minWidth="0dp"
@@ -24,21 +28,20 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="@id/tvTaskName" />
 
-        <!-- Task Name TextView -->
-        <com.google.android.material.textview.MaterialTextView
+        <TextView
             android:id="@+id/tvTaskName"
             style="@style/TrevioText.Subtitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
+            android:layout_marginStart="14dp"
             android:textSize="16sp"
             android:textColor="@color/taskItemTextPrimary"
-            app:layout_constraintStart_toEndOf="@+id/cbTaskCompleted"
+            app:layout_constraintStart_toEndOf="@+id/taskCompletedCheckbox"
             app:layout_constraintEnd_toStartOf="@+id/ivRecurringIndicator"
             app:layout_constraintTop_toTopOf="parent"
             tools:text="Task Name Here" />
 
-        <!-- Recurring Task Indicator -->
+        <!-- Recurring icon -->
         <ImageView
             android:id="@+id/ivRecurringIndicator"
             android:layout_width="16dp"
@@ -47,18 +50,30 @@
             android:src="@drawable/ic_recurring"
             android:visibility="gone"
             android:contentDescription="Recurring Task"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/ivPriorityIndicator"
             app:layout_constraintTop_toTopOf="@id/tvTaskName"
             app:layout_constraintBottom_toBottomOf="@id/tvTaskName"
             app:tint="@color/primary_light_blue" />
 
-        <!-- Task Description TextView -->
-        <com.google.android.material.textview.MaterialTextView
+        <!-- Priority indicator -->
+        <ImageView
+            android:id="@+id/ivPriorityIndicator"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/ic_item"
+            android:visibility="gone"
+            android:contentDescription="Priority Indicator"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/tvTaskName"
+            app:layout_constraintBottom_toBottomOf="@id/tvTaskName" />
+
+        <TextView
             android:id="@+id/tvTaskDescription"
             style="@style/TrevioText.Body"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="5dp"
             android:textColor="@color/taskItemTextSecondary"
             app:layout_constraintStart_toStartOf="@+id/tvTaskName"
             app:layout_constraintEnd_toEndOf="parent"
@@ -67,29 +82,42 @@
             tools:visibility="visible"
             tools:text="This is a sample task description that might be quite long." />
 
-        <!-- Subtasks Container -->
+        <!-- Subtasks list - added in v1.2 -->
         <LinearLayout
             android:id="@+id/subtasksContainer"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:layout_marginTop="8dp"
-            android:layout_marginStart="16dp"
-            app:layout_constraintStart_toEndOf="@+id/cbTaskCompleted"
+            android:layout_marginStart="14dp"
+            app:layout_constraintStart_toEndOf="@+id/taskCompletedCheckbox"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/tvTaskDescription" />
 
-        <!-- Task Time TextView -->
-        <com.google.android.material.textview.MaterialTextView
+        <!-- Task metadata -->
+        <TextView
             android:id="@+id/tvTaskTime"
-            style="@style/TrevioText.Caption"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="6dp"
             android:drawablePadding="4dp"
+            android:textSize="12sp"
+            android:textColor="#757575"
             app:layout_constraintStart_toStartOf="@+id/tvTaskName"
             app:layout_constraintTop_toBottomOf="@+id/subtasksContainer"
             tools:text="10:00 AM" />
+            
+        <!-- Status indicator - will be implemented in v1.4
+        <View
+            android:id="@+id/taskStatusIndicator"
+            android:layout_width="6dp"
+            android:layout_height="0dp"
+            android:background="@color/task_status_default"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+        -->
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </com.google.android.material.card.MaterialCardView> 

@@ -3,11 +3,12 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/addTaskRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".AddTaskActivity">
 
-    <!-- Modern Gradient Background -->
+    <!-- Background elements -->
     <View
         android:id="@+id/backgroundGradient"
         android:layout_width="0dp"
@@ -18,349 +19,433 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Pattern Overlay for depth -->
     <View
         android:id="@+id/patternOverlay"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="@drawable/welcome_pattern_overlay"
+        android:alpha="0.82"  
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Branding at top center -->
+    <!-- Logo at top of screen -->
     <ImageView
         android:id="@+id/logoImage"
-        android:layout_width="120dp"
-        android:layout_height="32dp"
-        android:layout_marginTop="16dp"
+        android:layout_width="112dp"
+        android:layout_height="28dp"
+        android:layout_marginTop="17dp"
+        android:layout_marginStart="5dp"
         android:contentDescription="Trevio Logo"
         android:src="@drawable/ic_trevio_logo"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Main Content Card -->
-    <com.google.android.material.card.MaterialCardView
+    <!-- Main card container - holds all the form elements -->
+    <FrameLayout
+        android:id="@+id/mainCardContainer"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="16dp"
-        app:cardCornerRadius="24dp"
-        app:cardElevation="4dp"
-        app:strokeColor="@color/black"
-        app:strokeWidth="1dp"
-        app:cardBackgroundColor="@color/welcome_card_background"
+        android:layout_marginStart="19dp"
+        android:layout_marginEnd="14dp"
+        android:layout_marginTop="15dp"
+        android:layout_marginBottom="17dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/logoImage">
-
-        <ScrollView
+        
+        <!-- Card shadow - manually drawn instead of using elevation for custom look -->
+        <View
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:padding="24dp">
+            android:layout_marginTop="4dp"
+            android:layout_marginStart="5dp"
+            android:background="@color/black"
+            android:alpha="0.13"
+            android:layout_marginEnd="3dp"
+            android:layout_marginBottom="6dp"/>
+        
+        <androidx.cardview.widget.CardView
+            android:id="@+id/contentCard"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:cardCornerRadius="19dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/welcome_card_background">
 
-            <LinearLayout
+            <ScrollView
+                android:id="@+id/scrollContainer"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:layout_height="match_parent"
+                android:scrollbarStyle="outsideOverlay"
+                android:scrollbars="vertical"
+                android:fadeScrollbars="false"
+                android:paddingStart="26dp"
+                android:paddingEnd="21dp"
+                android:paddingTop="23dp"
+                android:paddingBottom="18dp"
+                android:clipToPadding="false">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Create New Task"
-                    android:textSize="24sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/welcome_text_primary"
-                    android:layout_marginBottom="24dp" />
-
-                <com.google.android.material.textfield.TextInputLayout
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="Task Name"
-                    android:layout_marginBottom="16dp"
-                    app:boxCornerRadiusBottomEnd="12dp"
-                    app:boxCornerRadiusBottomStart="12dp"
-                    app:boxCornerRadiusTopEnd="12dp"
-                    app:boxCornerRadiusTopStart="12dp"
-                    app:boxStrokeColor="@color/gray_always"
-                    app:hintTextColor="@color/welcome_accent"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                    android:orientation="vertical">
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etTaskName"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content" />
-                </com.google.android.material.textfield.TextInputLayout>
+                    <!-- Screen title -->
+                    <TextView
+                        android:id="@+id/titleText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Create New Task"
+                        android:textSize="23sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/welcome_text_primary"
+                        android:layout_marginStart="1dp"
+                        android:layout_marginBottom="23dp" />
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="Description (Optional)"
-                    android:layout_marginBottom="16dp"
-                    app:boxCornerRadiusBottomEnd="12dp"
-                    app:boxCornerRadiusBottomStart="12dp"
-                    app:boxCornerRadiusTopEnd="12dp"
-                    app:boxCornerRadiusTopStart="12dp"
-                    app:boxStrokeColor="@color/gray_always"
-                    app:hintTextColor="@color/welcome_accent"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etTaskDescription"
+                    <!-- Task name field -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/taskNameField"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="textMultiLine"
-                        android:minLines="2" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:hint="Task Name"
+                        android:layout_marginBottom="16dp"
+                        app:boxCornerRadiusBottomEnd="9dp"
+                        app:boxCornerRadiusBottomStart="9dp"
+                        app:boxCornerRadiusTopEnd="11dp"
+                        app:boxCornerRadiusTopStart="11dp"
+                        app:boxStrokeColor="@color/gray_always"
+                        app:hintTextColor="@color/welcome_accent">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Difficulty:"
-                    android:textColor="@color/welcome_text_secondary"
-                    android:layout_marginBottom="8dp"/>
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etTaskName"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content" />
+                    </com.google.android.material.textfield.TextInputLayout>
 
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/gray_always"
-                    app:strokeWidth="1dp"
-                    app:rippleColor="@android:color/transparent"
-                    app:cardBackgroundColor="@android:color/transparent">
-                    <Spinner
-                        android:id="@+id/spinnerDifficulty"
+                    <!-- Task description - optional field -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/descriptionField"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="@android:color/transparent" />
-                </com.google.android.material.card.MaterialCardView>
+                        android:hint="Description (Optional)"
+                        android:layout_marginBottom="18dp" 
+                        app:boxCornerRadiusBottomEnd="9dp"
+                        app:boxCornerRadiusBottomStart="9dp"
+                        app:boxCornerRadiusTopEnd="11dp"
+                        app:boxCornerRadiusTopStart="11dp"
+                        app:boxStrokeColor="@color/gray_always" 
+                        app:hintTextColor="@color/welcome_accent">
 
-                <!-- Priority Section -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Priority:"
-                    android:textColor="@color/welcome_text_secondary"
-                    android:layout_marginBottom="8dp"/>
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etTaskDescription"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textMultiLine"
+                            android:minLines="2" />
+                    </com.google.android.material.textfield.TextInputLayout>
 
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="0dp"
-                    app:strokeColor="@color/gray_always"
-                    app:strokeWidth="1dp"
-                    app:rippleColor="@android:color/transparent"
-                    app:cardBackgroundColor="@android:color/transparent">
-                    <Spinner
-                        android:id="@+id/spinnerPriority"
+                    <!-- Difficulty dropdown -->
+                    <TextView
+                        android:id="@+id/difficultyLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Difficulty:"
+                        android:textColor="@color/welcome_text_secondary"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginBottom="5dp"/>
+
+                    <FrameLayout
+                        android:id="@+id/difficultySpinnerWrapper"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="@android:color/transparent" />
-                </com.google.android.material.card.MaterialCardView>
+                        android:layout_marginBottom="15dp"  
+                        android:background="@android:color/transparent"
+                        android:padding="2dp">
+                        
+                        <Spinner
+                            android:id="@+id/spinnerDifficulty"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@android:color/transparent"
+                            android:minHeight="48dp" />
+                    </FrameLayout>
 
-                <!-- Time Selection -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="1dp"
-                    app:strokeColor="@color/gray_always"
-                    app:strokeWidth="1dp"
-                    app:rippleColor="@android:color/transparent"
-                    app:cardBackgroundColor="@color/welcome_card_background">
+                    <!-- Priority selection -->
+                    <TextView
+                        android:id="@+id/priorityLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Priority:"
+                        android:textColor="@color/welcome_text_secondary"
+                        android:layout_marginBottom="6dp"/>
 
+                    <FrameLayout
+                        android:id="@+id/prioritySpinnerWrapper"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"  
+                        android:background="@android:color/transparent"
+                        android:padding="2dp">
+                        
+                        <Spinner
+                            android:id="@+id/spinnerPriority"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@android:color/transparent"
+                            android:minHeight="48dp" />
+                    </FrameLayout>
+
+                    <!-- Time picker row -->
                     <LinearLayout
+                        android:id="@+id/timeRow"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:padding="12dp">
+                        android:paddingStart="12dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="9dp"
+                        android:paddingBottom="9dp"
+                        android:layout_marginBottom="13dp"
+                        android:background="@drawable/rounded_border_background">
 
                         <TextView
+                            android:id="@+id/timeLabel"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Time: "
                             android:textColor="@color/welcome_text_secondary" />
 
                         <TextView
-                            android:id="@+id/tvSelectedTime"
+                            android:id="@+id/timeValue"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="Select Time"
                             android:textColor="@color/welcome_text_primary" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnSelectTime"
-                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                        <Button
+                            android:id="@+id/timeButton"
+                            style="?android:attr/buttonBarButtonStyle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Change"
+                            android:minWidth="0dp"
                             android:textColor="@color/welcome_accent" />
                     </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
 
-                <!-- Deadline Section -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="24dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="1dp"
-                    app:strokeColor="@color/gray_always"
-                    app:strokeWidth="1dp"
-                    app:rippleColor="@android:color/transparent"
-                    app:cardBackgroundColor="@color/welcome_card_background">
-
+                    <!-- Deadline date selector -->
                     <LinearLayout
+                        android:id="@+id/deadlineRow"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:padding="12dp">
+                        android:paddingStart="12dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="9dp"
+                        android:paddingBottom="9dp"
+                        android:layout_marginBottom="12dp" 
+                        android:background="@drawable/rounded_border_background">
 
                         <TextView
+                            android:id="@+id/deadlineLabel"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Deadline: "
                             android:textColor="@color/welcome_text_secondary" />
 
                         <TextView
-                            android:id="@+id/tvSelectedDeadline"
+                            android:id="@+id/deadlineValue"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Not Set"
+                            android:text="Select Date"
                             android:textColor="@color/welcome_text_primary" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnSetDeadline"
-                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                        <Button
+                            android:id="@+id/deadlineButton"
+                            style="?android:attr/buttonBarButtonStyle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Set"
+                            android:text="Change"
+                            android:minWidth="0dp"
                             android:textColor="@color/welcome_accent" />
                     </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
 
-                <!-- Recurrence Section -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="24dp"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="1dp"
-                    app:strokeColor="@color/gray_always"
-                    app:strokeWidth="1dp"
-                    app:rippleColor="@android:color/transparent"
-                    app:cardBackgroundColor="@color/welcome_card_background">
-
+                    <!-- Reminder row - for future notifications -->
                     <LinearLayout
+                        android:id="@+id/reminderRow"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
-                        android:padding="12dp">
+                        android:paddingStart="12dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="9dp"
+                        android:paddingBottom="9dp"
+                        android:layout_marginBottom="20dp"
+                        android:background="@drawable/rounded_border_background">
 
                         <TextView
+                            android:id="@+id/reminderLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Reminder: "
+                            android:textColor="@color/welcome_text_secondary" />
+
+                        <TextView
+                            android:id="@+id/reminderValue"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="None"
+                            android:textColor="@color/welcome_text_primary" />
+
+                        <Button
+                            android:id="@+id/reminderButton"
+                            style="?android:attr/buttonBarButtonStyle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Set"
+                            android:minWidth="0dp"
+                            android:textColor="@color/welcome_accent" />
+                    </LinearLayout>
+
+                    <!-- Recurrence settings for repeated tasks -->
+                    <LinearLayout
+                        android:id="@+id/repeatContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="8dp"
+                        android:paddingTop="9dp"
+                        android:paddingBottom="9dp"
+                        android:layout_marginBottom="25dp" 
+                        android:background="@drawable/rounded_border_background">
+
+                        <TextView
+                            android:id="@+id/repeatLabel"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Repeat: "
                             android:textColor="@color/welcome_text_secondary" />
 
                         <TextView
-                            android:id="@+id/tvSelectedRecurrence"
+                            android:id="@+id/repeatValue"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="No Repetition"
+                            android:text="Never"
                             android:textColor="@color/welcome_text_primary" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnSetRecurrence"
-                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                        <Button
+                            android:id="@+id/repeatButton"
+                            style="?android:attr/buttonBarButtonStyle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Set"
+                            android:text="Change"
+                            android:minWidth="0dp"
                             android:textColor="@color/welcome_accent" />
                     </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- Steps Section -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Steps"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/welcome_text_primary"
-                    android:layout_marginBottom="16dp"/>
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rvTaskSteps"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content" 
-                    android:layout_marginBottom="16dp"
-                    android:nestedScrollingEnabled="false" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginBottom="24dp">
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="0dp"
+                    
+                    <!-- Subtasks section -->
+                    <TextView
+                        android:id="@+id/stepsLabel"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:hint="Add a step"
-                        app:boxCornerRadiusBottomEnd="12dp"
-                        app:boxCornerRadiusBottomStart="12dp"
-                        app:boxCornerRadiusTopEnd="12dp"
-                        app:boxCornerRadiusTopStart="12dp"
-                        app:boxStrokeColor="@color/gray_always"
-                        app:hintTextColor="@color/welcome_accent"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        android:text="Steps"
+                        android:textSize="17sp"
+                        android:textColor="@color/welcome_text_primary"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginBottom="8dp"/>
+                    
+                    <!-- Input for new steps -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="10dp">
+                        
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            app:boxCornerRadiusBottomEnd="9dp"
+                            app:boxCornerRadiusBottomStart="9dp"
+                            app:boxCornerRadiusTopEnd="11dp"
+                            app:boxCornerRadiusTopStart="11dp"
+                            app:boxStrokeColor="@color/gray_always"
+                            android:layout_marginEnd="10dp">
+                            
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/newStepText"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:hint="Add a step" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                        
+                        <ImageButton
+                            android:id="@+id/addStepButton"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:src="@drawable/ic_add_vector"
+                            android:background="@drawable/rounded_button_background"
+                            android:contentDescription="Add step" />
+                    </LinearLayout>
+                    
+                    <!-- List of steps/subtasks -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/stepsList"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="18dp"
+                        android:visibility="visible" />
+                    
+                    <!-- Bottom action buttons -->
+                    <LinearLayout
+                        android:id="@+id/buttonsContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="4dp">
 
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etNewStep"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                        <Button
+                            android:id="@+id/cancelButton"
+                            android:layout_width="0dp"
+                            android:layout_height="54dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="6dp"
+                            android:text="Cancel"
+                            android:textSize="15sp"
+                            android:textAllCaps="false"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:textColor="@color/welcome_text_secondary"
+                            app:strokeColor="@color/colorOutline"/>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnAddStep"
-                        style="@style/Widget.Material3.Button.IconButton.Filled"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:layout_marginStart="8dp"
-                        app:icon="@android:drawable/ic_input_add"
-                        app:iconTint="@color/white"
-                        app:cornerRadius="24dp"
-                        android:backgroundTint="@color/welcome_accent" />
+                        <Button
+                            android:id="@+id/saveButton"
+                            android:layout_width="0dp"
+                            android:layout_height="54dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="6dp"
+                            android:text="Save Task"
+                            android:textSize="15sp"
+                            android:textAllCaps="false"
+                            android:backgroundTint="@color/welcome_button_primary"
+                            android:textColor="@color/colorOnPrimary"/>
+                    </LinearLayout>
                 </LinearLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnSaveTask"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Save Task"
-                    android:textSize="16sp"
-                    android:padding="12dp"
-                    app:cornerRadius="16dp"
-                    android:elevation="2dp"
-                    android:backgroundTint="@color/welcome_button_primary" />
-            </LinearLayout>
-        </ScrollView>
-    </com.google.android.material.card.MaterialCardView>
-
+            </ScrollView>
+        </androidx.cardview.widget.CardView>
+    </FrameLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

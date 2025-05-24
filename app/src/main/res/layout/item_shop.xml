@@ -2,23 +2,29 @@
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginBottom="8dp"
+    android:layout_marginBottom="10dp"
     app:cardCornerRadius="12dp"
     app:cardElevation="2dp"
-    app:cardBackgroundColor="@color/subtask_dark_background"
-    app:strokeColor="@color/quest_card_stroke"
+    app:cardBackgroundColor="?attr/colorSurface"
+    app:strokeColor="?attr/colorOutline"
     app:strokeWidth="0.5dp">
 
+    <!-- shop item layout -->
     <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/shopItemLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="12dp">
+        android:paddingStart="14dp"
+        android:paddingEnd="13dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="11dp">
 
         <ImageView
-            android:id="@+id/ivIcon"
-            android:layout_width="40dp"
+            android:id="@+id/itemIcon"
+            android:layout_width="42dp"
             android:layout_height="40dp"
             android:contentDescription="@string/app_name"
             app:layout_constraintStart_toStartOf="parent"
@@ -26,47 +32,68 @@
             app:layout_constraintBottom_toBottomOf="parent" />
 
         <TextView
-            android:id="@+id/tvItemName"
+            android:id="@+id/itemName"
             style="@style/TrevioText.Body"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Item Name"
-            android:textColor="@color/quest_card_text"
+            android:textColor="?attr/colorOnSurface"
             android:textStyle="bold"
-            app:layout_constraintStart_toEndOf="@+id/ivIcon"
-            app:layout_constraintTop_toTopOf="@+id/ivIcon"
-            app:layout_constraintEnd_toStartOf="@+id/tvItemCost"
-            android:layout_marginStart="12dp" />
+            app:layout_constraintStart_toEndOf="@+id/itemIcon"
+            app:layout_constraintTop_toTopOf="@+id/itemIcon"
+            app:layout_constraintEnd_toStartOf="@+id/itemPrice"
+            android:layout_marginStart="14dp"
+            tools:text="Magic Sword" />
+            
+        <TextView
+            android:id="@+id/itemDescription"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="Item description"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textSize="12sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:visibility="gone"
+            android:layout_marginTop="2dp"
+            app:layout_constraintStart_toStartOf="@id/itemName"
+            app:layout_constraintEnd_toStartOf="@+id/itemPrice"
+            app:layout_constraintTop_toBottomOf="@+id/itemName"
+            tools:visibility="visible"
+            tools:text="Increases attack power by 10%" />
 
         <TextView
-            android:id="@+id/tvItemCost"
-            style="@style/TrevioText.Caption"
+            android:id="@+id/itemPrice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="0"
             android:textColor="@color/gold"
+            android:textSize="13sp"
             android:drawableStart="@drawable/ic_coin"
             android:drawablePadding="4dp"
             android:gravity="center_vertical"
-            app:layout_constraintTop_toTopOf="@+id/ivIcon"
-            app:layout_constraintBottom_toBottomOf="@+id/ivIcon"
-            app:layout_constraintEnd_toStartOf="@+id/btnBuy"
-            android:layout_marginEnd="12dp" />
+            app:layout_constraintTop_toTopOf="@+id/itemIcon"
+            app:layout_constraintBottom_toBottomOf="@+id/itemIcon"
+            app:layout_constraintEnd_toStartOf="@+id/buyButton"
+            android:layout_marginEnd="12dp"
+            tools:text="750" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnBuy"
-            style="@style/TrevioButton.Accent"
+        <!-- TODO: Add onEquip button for equipment type items -->
+        <Button
+            android:id="@+id/buyButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Buy"
             android:textSize="12sp"
+            android:backgroundTint="?attr/colorPrimary"
+            android:textColor="?attr/colorOnPrimary"
             android:minWidth="64dp"
             android:minHeight="36dp"
-            android:paddingHorizontal="12dp"
+            android:paddingHorizontal="10dp"
             android:paddingVertical="8dp"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/ivIcon"
-            app:layout_constraintBottom_toBottomOf="@+id/ivIcon" />
+            app:layout_constraintTop_toTopOf="@+id/itemIcon"
+            app:layout_constraintBottom_toBottomOf="@+id/itemIcon" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView> 

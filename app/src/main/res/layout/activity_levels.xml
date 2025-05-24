@@ -3,176 +3,223 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/rootLayoutLevels"
+    android:id="@+id/levelsRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".LevelsActivity">
 
-    <!-- Modern Gradient Background -->
+    <!-- Background elements -->
     <View
-        android:id="@+id/backgroundGradient"
+        android:id="@+id/bgGradient"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="@drawable/welcome_gradient_background"
+        android:background="?attr/backgroundGradient"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Pattern Overlay for depth -->
     <View
         android:id="@+id/patternOverlay"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="@drawable/welcome_pattern_overlay"
+        android:background="?attr/patternOverlay"
+        android:alpha="0.85"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Content layout -->
-    <LinearLayout
-        android:id="@+id/contentAreaLevels"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="16dp"
-        app:layout_constraintTop_toTopOf="parent"
+    <!-- App logo -->
+    <ImageView
+        android:id="@+id/logoImg"
+        android:layout_width="145dp"
+        android:layout_height="38dp"
+        android:layout_marginTop="18dp"
+        android:layout_marginStart="3dp" 
+        android:contentDescription="Trevio Logo"
+        android:src="@drawable/ic_trevio_logo"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Navigation header card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/headerCard"
+        style="@style/TrevioCard"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="17dp"
+        android:layout_marginStart="17dp"
+        android:layout_marginEnd="19dp"
+        app:layout_constraintTop_toBottomOf="@id/logoImg"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+        
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="17dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="13dp">
+
+            <Button
+                android:id="@+id/backBtn"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Back"
+                android:minWidth="60dp"
+                android:textColor="?attr/colorPrimary"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <TextView
+                android:id="@+id/levelsTitleTv"
+                style="@style/TrevioText.Subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Levels &amp; Badges"
+                android:textColor="?attr/colorOnSurface"
+                android:layout_marginStart="4dp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintHorizontal_bias="0.53" />
+
+            <!-- Removed badge counter - might add back later -->
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- XP progress card - shows current level info -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/progressCard"
+        style="@style/TrevioCard.LowElevation"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="15dp"
+        android:layout_marginStart="19dp"
+        android:layout_marginEnd="16dp"
+        app:cardBackgroundColor="?attr/colorSurface"
+        app:strokeColor="?attr/colorOutline"
+        app:cardCornerRadius="12dp"
+        app:layout_constraintTop_toBottomOf="@id/headerCard"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="19dp"
+            android:paddingEnd="15dp"
+            android:paddingTop="15dp"
+            android:paddingBottom="17dp">
+
+            <TextView
+                android:id="@+id/progressTitle"
+                style="@style/TrevioText.Subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Character Progress"
+                android:textColor="?attr/colorOnSurface"
+                android:layout_marginBottom="9dp" />
+
+            <TextView
+                android:id="@+id/levelInfoTv"
+                style="@style/TrevioText.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Level 1: 0 / 100 XP"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:layout_marginTop="7dp" />
+
+            <!-- TODO: Add XP bonus info here for premium users -->
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/levelProgressBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:progress="0"
+                android:max="100"
+                app:trackThickness="8dp"
+                app:trackCornerRadius="4dp"
+                app:indicatorColor="?attr/colorPrimary"
+                app:trackColor="?attr/colorOutline" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Achievements display -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/badgesCard"
+        style="@style/TrevioCard.LowElevation"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="19dp"
+        android:layout_marginStart="17dp"
+        android:layout_marginEnd="18dp"
+        app:cardBackgroundColor="?attr/colorSurface"
+        app:strokeColor="?attr/colorOutline"
+        app:cardCornerRadius="13dp"
+        app:layout_constraintTop_toBottomOf="@id/progressCard"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Branding at top center -->
-        <ImageView
-            android:id="@+id/logoImage"
-            android:layout_width="150dp"
-            android:layout_height="40dp"
-            android:layout_marginTop="16dp"
-            android:layout_gravity="center_horizontal"
-            android:contentDescription="Trevio Logo"
-            android:src="@drawable/ic_trevio_logo" />
-
-        <!-- Header Card -->
-        <com.google.android.material.card.MaterialCardView
-            style="@style/TrevioCard"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="16dp">
-            
-            <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="17dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="14dp">
+
+            <TextView
+                android:id="@+id/badgesTitle"
+                style="@style/TrevioText.Subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Achievement Badges"
+                android:textColor="?attr/colorOnSurface"
+                android:layout_marginStart="2dp"
+                android:layout_marginBottom="13dp" />
+                
+            <!-- empty state message -->
+            <TextView
+                android:id="@+id/emptyBadgesTv"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="16dp">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/buttonBackLevels"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Back"
-                    android:textColor="@color/welcome_accent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent" />
-
-                <TextView
-                    android:id="@+id/tvLevelsTitle"
-                    style="@style/TrevioText.Subtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Levels &amp; Badges"
-                    android:textColor="@color/welcome_text_primary"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Level Progress Card -->
-        <com.google.android.material.card.MaterialCardView
-            style="@style/TrevioCard.LowElevation"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            app:cardBackgroundColor="@color/quest_dark_background"
-            app:strokeColor="@color/quest_card_stroke">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    style="@style/TrevioText.Subtitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Character Progress"
-                    android:textColor="@color/quest_card_text"
-                    android:layout_marginBottom="8dp" />
-
-                <TextView
-                    android:id="@+id/tvLevelInfo"
-                    style="@style/TrevioText.Body"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Level 1: 0 / 100 XP"
-                    android:textColor="@color/welcome_text_secondary"
-                    android:layout_marginTop="8dp" />
-
-                <com.google.android.material.progressindicator.LinearProgressIndicator
-                    android:id="@+id/progressBarLevel"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:progress="0"
-                    android:max="100"
-                    app:trackThickness="8dp"
-                    app:trackCornerRadius="4dp"
-                    app:indicatorColor="@color/welcome_accent"
-                    app:trackColor="@color/welcome_card_stroke" />
-
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Badges Card -->
-        <com.google.android.material.card.MaterialCardView
-            style="@style/TrevioCard.LowElevation"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            app:cardBackgroundColor="@color/quest_dark_background"
-            app:strokeColor="@color/quest_card_stroke">
-
-            <LinearLayout
+                android:text="Complete tasks to earn achievement badges"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:gravity="center"
+                android:padding="16dp"
+                android:visibility="gone"
+                android:layout_marginTop="10dp" />
+                
+            <!-- badges list -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/badgesRecyclerView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:clipToPadding="false"
+                android:paddingBottom="8dp"
+                android:scrollbars="vertical"
+                android:scrollbarStyle="outsideOverlay"
+                android:fadeScrollbars="true" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
-                <TextView
-                    style="@style/TrevioText.Subtitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Achievement Badges"
-                    android:textColor="@color/quest_card_text"
-                    android:layout_marginBottom="8dp" />
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recyclerViewBadges"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:clipToPadding="false"
-                    android:paddingBottom="8dp" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-    </LinearLayout>
-
-    <!-- Confetti overlay remains outside content padding -->
+    <!-- confetti effect for level up celebrations - looks cool but slows down older devices -->
     <com.airbnb.lottie.LottieAnimationView
-        android:id="@+id/confettiView"
+        android:id="@+id/confettiAnim"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone"

@@ -2,166 +2,247 @@
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/rootLayoutChallenges"
+    android:id="@+id/challengesRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".ChallengesActivity">
 
-    <!-- Modern Gradient Background -->
+    <!-- Background elements to match levels screen -->
     <View
-        android:id="@+id/backgroundGradient"
+        android:id="@+id/bgGradient"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="@drawable/welcome_gradient_background"
+        android:background="?attr/backgroundGradient"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Pattern Overlay for depth -->
     <View
         android:id="@+id/patternOverlay"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="@drawable/welcome_pattern_overlay"
+        android:background="?attr/patternOverlay"
+        android:alpha="0.85"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Content layout -->
-    <LinearLayout
-        android:id="@+id/contentAreaChallenges"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        app:layout_constraintTop_toTopOf="parent"
+    <!-- App logo positioned consistently -->
+    <ImageView
+        android:id="@+id/logoImage"
+        android:layout_width="145dp"
+        android:layout_height="38dp"
+        android:layout_marginTop="18dp"
+        android:contentDescription="Trevio Logo"
+        android:src="@drawable/ic_trevio_logo"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Header bar with back button - consistent styling -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/headerCard"
+        style="@style/TrevioCard"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="17dp"
+        android:layout_marginStart="17dp"
+        android:layout_marginEnd="19dp"
+        app:cardBackgroundColor="?attr/colorSurface"
+        app:strokeColor="?attr/colorOutline"
+        app:layout_constraintTop_toBottomOf="@id/logoImage"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+        
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="17dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="13dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/buttonBackChallenges"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Back"
+                android:minWidth="60dp"
+                android:textColor="?attr/colorPrimary"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <TextView
+                android:id="@+id/tvChallengesTitle"
+                style="@style/TrevioText.Subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Quest Center"
+                android:textColor="?attr/colorOnSurface"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Scrollable content with clean margins -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/contentScrollView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="15dp"
+        android:layout_marginBottom="19dp"
+        android:layout_marginStart="17dp"
+        android:layout_marginEnd="18dp"
+        android:scrollbars="vertical"
+        android:scrollbarStyle="outsideOverlay"
+        android:fadeScrollbars="true"
+        app:layout_constraintTop_toBottomOf="@id/headerCard"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Branding at top center -->
-        <ImageView
-            android:id="@+id/logoImage"
-            android:layout_width="150dp"
-            android:layout_height="40dp"
-            android:layout_marginTop="16dp"
-            android:layout_gravity="center_horizontal"
-            android:contentDescription="Trevio Logo"
-            android:src="@drawable/ic_trevio_logo" />
-
-        <!-- Header with title and back button -->
-        <com.google.android.material.card.MaterialCardView
-            style="@style/TrevioCard"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
-            android:layout_marginTop="16dp">
+            android:orientation="vertical"
+            android:paddingBottom="12dp">
+
+            <!-- Weekly quests with consistent card styling -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/weeklyCard"
+                style="@style/TrevioCard.LowElevation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardBackgroundColor="?attr/colorSurface"
+                app:strokeColor="?attr/colorOutline"
+                app:cardCornerRadius="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="17dp"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="15dp">
+
+                    <TextView
+                        android:id="@+id/weeklyTitle"
+                        style="@style/TrevioText.Subtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Weekly Challenges"
+                        android:textColor="?attr/colorOnSurface"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginBottom="13dp" />
+
+                    <!-- Will be shown when there are no weekly challenges -->
+                    <TextView
+                        android:id="@+id/weeklyChallengesEmpty"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Complete tasks to unlock weekly challenges"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:visibility="gone" />
+
+                    <!-- Container for dynamically added weekly challenges -->
+                    <LinearLayout
+                        android:id="@+id/weeklyChallengesContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Daily quests card with consistent styling -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/dailyCard"
+                style="@style/TrevioCard.LowElevation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="5dp"
+                app:cardBackgroundColor="?attr/colorSurface"
+                app:strokeColor="?attr/colorOutline"
+                app:cardCornerRadius="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="17dp"
+                    android:paddingTop="15dp"
+                    android:paddingBottom="16dp">
+
+                    <TextView
+                        android:id="@+id/dailyTitle"
+                        style="@style/TrevioText.Subtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Daily Challenges"
+                        android:textColor="?attr/colorOnSurface"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginBottom="13dp" />
+
+                    <!-- Shown when no daily challenges are available -->
+                    <TextView
+                        android:id="@+id/dailyChallengesEmpty"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="No daily challenges available yet"
+                        android:textColor="?attr/colorOnSurfaceVariant"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:visibility="gone" />
+
+                    <!-- Will contain dynamically added daily challenges -->
+                    <LinearLayout
+                        android:id="@+id/dailyChallengesContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- TODO: Maybe add special event quests in the future -->
             
-            <androidx.constraintlayout.widget.ConstraintLayout
+            <!-- Shown when both daily and weekly challenges are empty -->
+            <TextView
+                android:id="@+id/emptyStateMessage"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="16dp">
+                android:layout_marginTop="32dp"
+                android:gravity="center"
+                android:text="No quests available right now. Check back later!"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="16sp"
+                android:paddingStart="12dp"
+                android:paddingEnd="10dp"
+                android:visibility="gone" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/buttonBackChallenges"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Back"
-                    android:textColor="@color/welcome_accent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent" />
-
-                <TextView
-                    android:id="@+id/tvChallengesTitle"
-                    style="@style/TrevioText.Subtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Quest Center"
-                    android:textColor="@color/welcome_text_primary"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Main content scrollable area -->
-        <androidx.core.widget.NestedScrollView
-            android:id="@+id/contentScrollViewChallenges"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <!-- Weekly Challenges Section -->
-                <com.google.android.material.card.MaterialCardView
-                    style="@style/TrevioCard.LowElevation"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    app:cardBackgroundColor="@color/quest_dark_background"
-                    app:strokeColor="@color/quest_card_stroke">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            style="@style/TrevioText.Subtitle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Weekly Challenges"
-                            android:textColor="@color/quest_card_text"
-                            android:layout_marginBottom="8dp" />
-
-                        <LinearLayout
-                            android:id="@+id/weeklyChallengesContainer"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- Daily Challenges Section -->
-                <com.google.android.material.card.MaterialCardView
-                    style="@style/TrevioCard.LowElevation"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardBackgroundColor="@color/quest_dark_background"
-                    app:strokeColor="@color/quest_card_stroke">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            style="@style/TrevioText.Subtitle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Daily Challenges"
-                            android:textColor="@color/quest_card_text"
-                            android:layout_marginBottom="8dp" />
-
-                        <LinearLayout
-                            android:id="@+id/dailyChallengesContainer"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-            </LinearLayout>
-        </androidx.core.widget.NestedScrollView>
-    </LinearLayout>
+    <!-- Celebration animation when quest completed -->
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/confettiView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        app:lottie_autoPlay="false"
+        app:lottie_loop="false"
+        app:lottie_rawRes="@raw/confetti"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
 </androidx.constraintlayout.widget.ConstraintLayout> 

@@ -1,15 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Base.Theme.AplicatiaMea" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <item name="colorPrimary">@color/welcome_button_primary</item>
-        <item name="colorPrimaryVariant">@color/welcome_gradient_start</item>
-        <item name="colorOnPrimary">@color/white</item>
-        <item name="colorSecondary">@color/welcome_accent</item>
-        <item name="colorSecondaryVariant">@color/welcome_accent</item>
-        <item name="colorOnSecondary">@color/white</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
+    <style name="Theme.TrevioApp" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Primary brand color -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryVariant">@color/colorPrimary</item>
+        <item name="colorOnPrimary">@color/colorOnPrimary</item>
+        
+        <!-- Secondary brand color -->
+        <item name="colorSecondary">@color/colorSecondary</item>
+        <item name="colorOnSecondary">@color/colorOnSecondary</item>
+        
+        <!-- Background colors -->
+        <item name="android:colorBackground">@color/colorBackground</item>
+        <item name="colorOnBackground">@color/colorOnBackground</item>
+        
+        <!-- Surface colors -->
+        <item name="colorSurface">@color/colorSurface</item>
+        <item name="colorOnSurface">@color/colorOnSurface</item>
+        <item name="colorSurfaceVariant">@color/colorSurfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/colorOnSurfaceVariant</item>
+        <item name="colorOutline">@color/colorOutline</item>
+        
+        <!-- Status bar color -->
+        <item name="android:statusBarColor">@color/black</item>
+        
+        <!-- Text colors -->
+        <item name="android:textColorPrimary">@color/colorOnBackground</item>
+        <item name="android:textColorSecondary">@color/colorOnSurfaceVariant</item>
+        
+        <!-- Background and pattern drawables for dark theme -->
+        <item name="backgroundGradient">@drawable/welcome_gradient_background</item>
+        <item name="patternOverlay">@drawable/welcome_pattern_overlay</item>
+        
+        <!-- Card and UI colors -->
+        <item name="cardBackgroundColor">@color/colorSurface</item>
+        <item name="cardStrokeColor">@color/colorOutline</item>
+        <item name="buttonBackgroundTint">@color/colorPrimary</item>
+        <item name="buttonTextColor">@color/colorOnPrimary</item>
+        
+        <!-- Quest and task colors -->
+        <item name="questCardBackground">@color/colorSurface</item>
+        <item name="questCardStroke">@color/colorOutline</item>
+        <item name="questCardText">@color/colorOnSurface</item>
+        <item name="subtaskBackground">@color/colorSurfaceVariant</item>
     </style>
 </resources>

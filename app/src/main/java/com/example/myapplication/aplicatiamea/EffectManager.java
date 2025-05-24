@@ -2,172 +2,147 @@ package com.example.myapplication.aplicatiamea;
 
 import java.util.HashMap;
 import java.util.Map;
+import android.util.Log;
 
 /**
- * Manages the state of active potion effects.
- * NOTE: This class holds the runtime state. Persistence (saving/loading)
- * needs to be handled separately, likely by saving/loading these values
- * to/from Firestore when effects are activated/deactivated or the app starts.
+ * All the magic potion stuff lives here
+ * Used to be a complete disaster 😅
+ * Still not perfect but way better than the mess we had before
+ * 
+ * TODO: Add combo effects, was planning to implement but ran out of time
  */
 public class EffectManager {
+    private static final String TAG = "EffectMgr"; // shorter tag for logs
+    
+    // debug flag - turn on for testing
+    private static final boolean DEBUG = false;
 
-    /**
-     * Enum for effect timing used by quest-related functions
-     */
+    // Not really used but keeping it for future stuff
     public enum EffectTiming {
-        IMMEDIATE
+        IMMEDIATE,
+        DELAYED,     // might use this later
+        OVER_TIME    // for DOT effects
     }
 
-    // --- Effect States ---
+    // --- Potion Effects ---
+    // constants to avoid magic strings
+    private static final String RAGE_DRAUGHT_EXPIRY = "rageDraughtExpiryTimestamp";
+    private static final String DEXTERITY_TASKS = "dexterityTasksRemaining";
+    private static final String DEXTERITY_PERCENT = "dexterityTimeReductionPercent";
+    
+    // my attempt at better potion names - we should use these in the UI too
+    // private static final String[] POTION_NAMES = {
+    //    "Rage Draught", "Dexterity Serum", "Mindmeld Elixir", "Midas Brew"
+    // };
 
-    // 2. Rage Draught (Speed Boost) - Timed effect
+    // Checks if the rage boost is active
     public static boolean isRageDraughtActive(Map<String, Object> effects) {
-        long expiry = effects.getOrDefault("rageDraughtExpiryTimestamp", 0L) instanceof Number ? ((Number) effects.getOrDefault("rageDraughtExpiryTimestamp", 0L)).longValue() : 0L;
-        return expiry > System.currentTimeMillis();
+        if (effects == null) return false;
+        
+        long expiry = getNumericValue(effects, RAGE_DRAUGHT_EXPIRY, 0L);
+        boolean active = expiry > System.currentTimeMillis();
+        
+        if (DEBUG && active) {
+            Log.d(TAG, "Rage potion active, expires in: " + 
+                  ((expiry - System.currentTimeMillis()) / 1000) + " seconds");
+        }
+        
+        return active;
     }
 
-    // 3. Dexterity Serum (Efficiency Multiplier)
+    // Dexterity potion - makes the next few tasks faster
     public static boolean isDexteritySerumActive(Map<String, Object> effects) { 
-        int remaining = effects.getOrDefault("dexterityTasksRemaining", 0) instanceof Number ? ((Number) effects.getOrDefault("dexterityTasksRemaining", 0)).intValue() : 0;
-        return remaining > 0; 
+        if (effects == null) return false;
+        
+        int tasksLeft = (int) getNumericValue(effects, DEXTERITY_TASKS, 0);
+        
+        // hacky fix for negative values that somehow got into prod
+        if (tasksLeft < 0) tasksLeft = 0;
+        
+        return tasksLeft > 0;
     }
+    
+    // Default 10% time reduction
     public static double getDexterityTimeReduction(Map<String, Object> effects) {
-        return effects.getOrDefault("dexterityTimeReductionPercent", 0.1) instanceof Number ? ((Number) effects.getOrDefault("dexterityTimeReductionPercent", 0.1)).doubleValue() : 0.1;
+        if (effects == null) return 0.1; // fallback to 10%
+        
+        // clamp between 5-30% to avoid exploits
+        double reduction = getNumericValue(effects, DEXTERITY_PERCENT, 0.1);
+        return Math.min(0.3, Math.max(0.05, reduction)); 
     }
 
-    // 4. Mindmeld Elixir (Daily XP Boost)
-    public static double mindmeldXpBoostMultiplier = 1.2;
+    // XP boost - 20% more XP until midnight
+    public static double mindmeldXpBoostMultiplier = 1.2; // 1.2x
     public static boolean isMindmeldXpBoostActive(Map<String, Object> effects) {
-        long expiry = effects.getOrDefault("mindmeldXpBoostExpiryTimestamp", 0L) instanceof Number ? ((Number) effects.getOrDefault("mindmeldXpBoostExpiryTimestamp", 0L)).longValue() : 0L;
-        return expiry > System.currentTimeMillis();
+        if (effects == null) return false;
+        
+        long expiry = getNumericValue(effects, "mindmeldXpBoostExpiryTimestamp", 0L);
+        boolean active = expiry > System.currentTimeMillis();
+        
+        // for debugging performance issues
+        if (DEBUG && active) {
+            Log.d(TAG, "XP boost active: " + mindmeldXpBoostMultiplier + "x");
+        }
+        
+        return active;
     }
 
-    // 5. Vigor Potion (Streak Recovery) - One-time use flag
-    // Checked directly in map
+    // Strength potion doubles coin rewards
+    public static final long GIANT_STRENGTH_MULTIPLIER = 2;  // too OP? maybe reduce to 1.5x
 
-    // 6. Giant Strength Tonic (Double Coin Reward)
-    public static final long GIANT_STRENGTH_MULTIPLIER = 2;
-
-    // 7. Clarity Elixir (Highlight Task)
-    // Checked directly in map
-
-    // 8. Midas Brew (Timed Coin Bonus)
+    // Midas potion - double coins for 30 min
     public static final long MIDAS_BREW_MULTIPLIER = 2;
     public static boolean isMidasBrewActive(Map<String, Object> effects) {
-        long expiry = effects.getOrDefault("midasBrewExpiryTimestamp", 0L) instanceof Number ? ((Number) effects.getOrDefault("midasBrewExpiryTimestamp", 0L)).longValue() : 0L;
+        if (effects == null) return false;
+        
+        long expiry = getNumericValue(effects, "midasBrewExpiryTimestamp", 0L);
         return expiry > System.currentTimeMillis();
     }
 
-    // 9. Efficiency Serum (Quest Time Reduction)
+    // Speed up quests with efficiency potion
     public static double getQuestTimeReductionPercent(Map<String, Object> effects) {
-        return effects.getOrDefault("questTimeReductionPercent", 0.0) instanceof Number ? ((Number) effects.getOrDefault("questTimeReductionPercent", 0.0)).doubleValue() : 0.0;
+        if (effects == null) return 0.0;
+        
+        // Default to none if missing
+        double reduction = getNumericValue(effects, "questTimeReductionPercent", 0.0);
+        
+        // tried increasing this but it made quests too easy
+        return reduction; 
+    }
+    
+    // calculate total coin multiplier from all effects
+    public static double getTotalCoinMultiplier(Map<String, Object> effects) {
+        double multiplier = 1.0;
+        
+        if (effects == null) return multiplier;
+        
+        // apply Midas brew if active
+        if (isMidasBrewActive(effects)) {
+            multiplier *= MIDAS_BREW_MULTIPLIER;
+        }
+        
+        // other multipliers go here
+        
+        return multiplier;
     }
 
-    // 10. Insight Infusion (Tip/Quote)
-    // Checked directly in map
-
-    // --- Helper Methods ---
-
-    // REMOVE loadState as it's no longer needed and references removed fields
-    /*
-    public static void loadState(Map<String, Object> savedState) {
-        if (savedState == null) return;
-
-        // Commented out as these fields are removed
-        // ... (removed load logic) ...
+    // Helper to extract numbers safely - Firebase types are a mess
+    private static <T extends Number> T getNumericValue(Map<String, Object> map, String key, T defaultVal) {
+        if (map == null || !map.containsKey(key)) return defaultVal;
+        
+        Object val = map.get(key);
+        if (!(val instanceof Number)) return defaultVal;
+        
+        // This is gross but Firebase gives us weird number types sometimes
+        Number num = (Number) val;
+        
+        // Hacky Java type matching
+        if (defaultVal instanceof Integer) return (T) Integer.valueOf(num.intValue());
+        if (defaultVal instanceof Long) return (T) Long.valueOf(num.longValue());
+        if (defaultVal instanceof Double) return (T) Double.valueOf(num.doubleValue());
+        if (defaultVal instanceof Float) return (T) Float.valueOf(num.floatValue());
+        
+        // Shouldn't happen
+        return defaultVal;
     }
-    */
-
-    // XP Booster multiplier for next task
-    // Deprecated fields - Keeping them temporarily to avoid breaking old applyEffect logic if not updated
-    // REMOVE deprecated variables
-    /*
-    @Deprecated public static double nextTaskXpMultiplier = 1.0;
-    @Deprecated public static long speedBoostExpiry = 0;
-    @Deprecated public static boolean streakRecovered = false;
-    @Deprecated public static boolean doubleCoinsNextTask = false;
-    @Deprecated public static long midasStartTime = 0;
-    @Deprecated public static boolean insightUsed = false;
-    @Deprecated public static boolean clarityActive = false; // Also remove this one
-    @Deprecated public static double questTimeReductionPercent = 0; // And this one
-    */
-
-    // Store all active effects - Deprecated, use getStateToSave
-    // REMOVE deprecated getActiveEffects method
-    /*
-    @Deprecated
-    public static Map<String, Object> getActiveEffects() {
-        Map<String, Object> effects = new HashMap<>();
-        // ... (references removed fields) ...
-        return effects;
-    }
-    */
-
-    /** Clears one-time effects when they've been used - Deprecated, handle consumption logic where effect is applied */
-    // REMOVE deprecated resetOneTimeEffect method
-    /*
-    @Deprecated
-    public static void resetOneTimeEffect(String effectKey) {
-        // ... (references removed fields) ...
-    }
-    */
-
-    // REMOVE deprecated apply methods
-    /*
-    /** Applies strength potion multiplier and resets the flag. */
-    /*
-    public static long applyStrengthPotion(long baseXp) {
-        // strengthPotionActive = false; // Removed field
-        return (long) (baseXp * strengthPotionMultiplier);
-    }
-    */
-
-    /*
-    /** Applies giant strength tonic multiplier and resets the flag. */
-    /*
-    public static long applyGiantStrengthTonic(long baseCoins) {
-        // giantStrengthTonicActive = false; // Removed field
-        return baseCoins * 2;
-    }
-    */
-
-    /*
-    /** Applies mindmeld elixir multiplier if active and resets the flag. */
-    /*
-    public static long applyMindmeldElixir(long baseXp) {
-       // if (isMindmeldXpBoostActive()) { // Needs map
-       //     mindmeldXpBoostExpiryTimestamp = 0; // Removed field
-       //     return (long) (baseXp * mindmeldXpBoostMultiplier);
-       // }
-        return baseXp;
-    }
-    */
-
-    /*
-    /** Applies midas brew multiplier if active and keeps it active. */
-    /*
-    public static long applyMidasBrew(long baseCoins) {
-       // if (isMidasBrewActive()) { // Needs map
-       //     return baseCoins * 2;
-       // }
-        return baseCoins;
-    }
-    */
-
-    // Stub fields for backward compatibility
-    public static boolean strengthPotionActive = false;
-    public static long rageDraughtExpiryTimestamp = 0L;
-    public static int dexterityTasksRemaining = 0;
-    public static long mindmeldXpBoostExpiryTimestamp = 0L;
-    public static boolean vigorPotionUsedToRecoverStreak = false;
-    public static boolean giantStrengthTonicActive = false;
-    public static boolean clarityActive = false;
-    public static long midasBrewExpiryTimestamp = 0L;
-    public static double questTimeReductionPercent = 0.0;
-    public static boolean insightInfusionPending = false;
-
-    // Stub methods for backward compatibility
-    public static void loadState(Map<String, Object> savedState) { }
-    public static void resetVolatileEffects() { }
-    public static Map<String, Object> getStateToSave() { return new HashMap<>(); }
 } 

@@ -7,8 +7,8 @@
     android:layout_marginHorizontal="8dp"
     app:cardCornerRadius="16dp"
     app:cardElevation="4dp"
-    app:cardBackgroundColor="@color/quest_dark_background"
-    app:strokeColor="@color/quest_card_stroke"
+    app:cardBackgroundColor="?attr/questCardBackground"
+    app:strokeColor="?attr/questCardStroke"
     app:strokeWidth="1dp"
     android:clipToPadding="false"
     android:clipChildren="false">
@@ -26,7 +26,7 @@
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:layout_marginEnd="8dp"
-            app:buttonTint="@color/primary_light_blue"/>
+            app:buttonTint="?attr/colorPrimary"/>
 
         <LinearLayout
             android:layout_width="0dp"
@@ -47,7 +47,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:textSize="16sp"
-                    android:textColor="@color/quest_card_text"/>
+                    android:textColor="?attr/questCardText"/>
 
                 <ImageView
                     android:id="@+id/ivRecurringIndicator"
@@ -57,7 +57,7 @@
                     android:src="@drawable/ic_recurring"
                     android:visibility="gone"
                     android:contentDescription="Recurring Task"
-                    app:tint="@color/primary_light_blue" />
+                    app:tint="?attr/colorPrimary" />
             </LinearLayout>
 
             <!-- Task description -->
@@ -66,7 +66,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textSize="14sp"
-                android:textColor="@color/primary_light_blue"
+                android:textColor="?attr/colorPrimary"
                 android:ellipsize="end"
                 android:maxLines="3"
                 android:visibility="visible"
@@ -78,7 +78,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:textSize="14sp"
-                android:textColor="@color/primary_light_blue"/>
+                android:textColor="?attr/colorPrimary"/>
 
             <!-- Container for subtasks (inflated dynamically) -->
             <LinearLayout
@@ -104,11 +104,11 @@
             android:layout_height="36dp"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             app:icon="@android:drawable/ic_menu_edit"
-            app:iconTint="@color/primary_light_blue"
+            app:iconTint="?attr/colorPrimary"
             app:iconGravity="textStart"
             app:iconPadding="0dp"
             app:cornerRadius="18dp"
-            app:strokeColor="@color/primary_light_blue"
+            app:strokeColor="?attr/colorPrimary"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:insetLeft="0dp"

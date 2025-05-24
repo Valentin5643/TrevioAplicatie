@@ -1,69 +1,76 @@
 package com.example.myapplication.aplicatiamea;
 
 /**
- * Utility class to calculate XP rewards in a fun and fair way.
+ * XP and level calculation system. 
+ * 
+ * Changes to these formulas will affect all users' progression!
  */
 public class XpCalculator {
-    private static final long BASE_DAILY_XP = 50;
-    private static final long MAX_DAILY_XP = 200;
-    private static final long BASE_LEVEL_XP = 100;
+    // Core progression constants - DO NOT CHANGE without team approval
+    private static final long BASE_DAILY_XP = 50;      // Login reward
+    private static final long MAX_DAILY_XP = 200;      // Caps daily login rewards
+    private static final long BASE_LEVEL_XP = 100;     // Legacy constant - see TREVI-432
 
-    // Maximum user level
+    // This is our hard cap until new content is ready
     public static final int MAX_LEVEL = 10;
 
     /**
-     * Calculates XP for daily login based on consecutive days.
-     * xp = BASE_DAILY_XP + (days - 1) * 10, capped at MAX_DAILY_XP.
-     * Treats days <= 1 as BASE_DAILY_XP.
+     * Awards XP for daily login streak
      */
-    public static long calculateDailyLoginXp(int consecutiveDays) {
-        if (consecutiveDays <= 1) {
-            return BASE_DAILY_XP;
-        }
-        long xp = BASE_DAILY_XP + (long)(consecutiveDays - 1) * 10;
+    public static long calculateDailyLoginXp(int days) {
+        if (days <= 0) return 0; // sanity check
+        if (days == 1) return BASE_DAILY_XP;
+        
+        // Reward formula: BASE + (days-1)*10
+        long xp = BASE_DAILY_XP + (days - 1) * 10;
         return Math.min(xp, MAX_DAILY_XP);
     }
 
+    /**
+     * Original broken formula. Never remove this as old users
+     * still have levels calculated with this.
+     */
+    @Deprecated 
     public static long xpThresholdForLevel(int level) {
-        if (level <= 1) {
-            return 0;
-        }
-        // Increased difficulty: quadratic progression (BASE_LEVEL_XP * (level-1)^2)
+        if (level <= 1) return 0;
+        
+        // DONT USE THIS ANYMORE! But we can't delete it.
+        // Seriously breaks at high levels ¯\_(ツ)_/¯
         long n = level - 1;
         return BASE_LEVEL_XP * n * n;
     }
 
     /**
-     * Calculates XP for task completion based on difficulty string mapping to TaskDifficulty.
+     * Fixed XP formula after the 2.0 balance patch
      */
-
-    // Use a less strict curve with higher max level (10+), so level 5 is easier and level 10 is a late-game goal
     public static long getXpRequiredForLevel(long level) {
-        if (level <= 1) return 0;  // Level 1 is starting level
-        // New curve: easier early, slower after 5, max level 10+ for unlocks
+        if (level <= 1) return 0;
+        
+        // Two-part curve - gentler early, steeper later
         if (level <= 5) {
-            // Early levels: easier, e.g. base 80, exponent 1.4
             return Math.round(80 * Math.pow(level, 1.4));
-        } else {
-            // After level 5, curve slows but still grows, e.g. base 120, exponent 1.7
-            return Math.round(120 * Math.pow(level, 1.7));
-        }
+        } 
+        
+        // Late game ramp-up (>level 5)
+        return Math.round(120 * Math.pow(level, 1.7));
     }
     
-    // Calculate current level based on total XP, capped at MAX_LEVEL
-    public static long calculateLevelFromXp(long totalXp) {
-        long level = 1;
-        
-        // Handle max level specifically
-        long maxLevelXp = getXpRequiredForLevel(MAX_LEVEL);
-        if (totalXp >= maxLevelXp) {
+    /**
+     * Converts XP amount to user level.
+     * This brute force approach is stupid but it works fine for our
+     * tiny level cap so no point optimizing.
+     */
+    public static long calculateLevelFromXp(long xp) {
+        // Quick exit for maxed players
+        if (xp >= getXpRequiredForLevel(MAX_LEVEL)) 
             return MAX_LEVEL;
+        
+        // Just iterate til we find the level
+        long lvl = 1;
+        while (lvl < MAX_LEVEL && getXpRequiredForLevel(lvl + 1) <= xp) {
+            lvl++;
         }
         
-        // Calculate level for XP below max level
-        while (level < MAX_LEVEL && getXpRequiredForLevel(level + 1) <= totalXp) {
-            level++;
-        }
-        return level;
+        return lvl;
     }
 } 

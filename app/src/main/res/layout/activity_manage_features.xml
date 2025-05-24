@@ -23,7 +23,7 @@
         android:id="@+id/patternOverlay"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="@drawable/welcome_pattern_overlay"
+        android:background="?attr/patternOverlay"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -57,7 +57,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:layout_marginBottom="24dp">
+            android:layout_marginBottom="24dp"
+            app:cardBackgroundColor="?attr/cardBackgroundColor"
+            app:strokeColor="?attr/cardStrokeColor">
             
             <TextView
                 style="@style/TrevioText.Title"
@@ -66,6 +68,7 @@
                 android:layout_height="wrap_content"
                 android:text="Quest Center"
                 android:gravity="center"
+                android:textColor="?attr/colorOnSurface"
                 android:padding="16dp"/>
         </com.google.android.material.card.MaterialCardView>
 
@@ -74,7 +77,9 @@
             style="@style/TrevioCard.LowElevation"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="?attr/cardBackgroundColor"
+            app:strokeColor="?attr/cardStrokeColor">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnNavigateChallenges"
@@ -82,17 +87,22 @@
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
                 android:text="Challenges"
+                android:backgroundTint="?attr/buttonBackgroundTint"
+                android:textColor="?attr/buttonTextColor"
                 app:icon="@drawable/achievement"
                 app:iconGravity="textStart"
                 app:iconPadding="16dp"
-                app:iconSize="24dp" />
+                app:iconSize="24dp"
+                app:iconTint="?attr/buttonTextColor" />
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
             style="@style/TrevioCard.LowElevation"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="?attr/cardBackgroundColor"
+            app:strokeColor="?attr/cardStrokeColor">
             
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnNavigateLevels"
@@ -100,17 +110,22 @@
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
                 android:text="Levels and Badges"
+                android:backgroundTint="?attr/buttonBackgroundTint"
+                android:textColor="?attr/buttonTextColor"
                 app:icon="@drawable/steps"
                 app:iconGravity="textStart"
                 app:iconPadding="16dp"
-                app:iconSize="24dp" />
+                app:iconSize="24dp"
+                app:iconTint="?attr/buttonTextColor" />
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
             style="@style/TrevioCard.LowElevation"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp">
+            android:layout_marginBottom="24dp"
+            app:cardBackgroundColor="?attr/cardBackgroundColor"
+            app:strokeColor="?attr/cardStrokeColor">
             
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnNavigateShop"
@@ -118,10 +133,13 @@
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
                 android:text="Shop and Items"
+                android:backgroundTint="?attr/buttonBackgroundTint"
+                android:textColor="?attr/buttonTextColor"
                 app:icon="@drawable/treasure"
                 app:iconGravity="textStart"
                 app:iconPadding="16dp"
-                app:iconSize="24dp" />
+                app:iconSize="24dp"
+                app:iconTint="?attr/buttonTextColor" />
         </com.google.android.material.card.MaterialCardView>
 
         <!-- Spacer to push Back button down -->
@@ -137,28 +155,33 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Back to Home"
-            android:textColor="@color/white"
+            android:textColor="?attr/colorOnBackground"
             android:layout_marginBottom="16dp"
-            app:strokeColor="@color/white"
+            app:strokeColor="?attr/colorOnBackground"
             app:strokeWidth="1dp" />
+            
         <com.google.android.material.card.MaterialCardView
             style="@style/TrevioCard.LowElevation"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="?attr/cardBackgroundColor"
+            app:strokeColor="?attr/cardStrokeColor">
+            
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnNavigateHistory"
                 style="@style/TrevioButton.Primary"
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
                 android:text="History"
+                android:backgroundTint="?attr/buttonBackgroundTint"
+                android:textColor="?attr/buttonTextColor"
                 app:icon="@drawable/ic_history"
                 app:iconGravity="textStart"
                 app:iconPadding="16dp"
-                app:iconSize="24dp" />
+                app:iconSize="24dp"
+                app:iconTint="?attr/buttonTextColor" />
         </com.google.android.material.card.MaterialCardView>
-        <!-- Spacer to push Back button down -->
     </LinearLayout>
-
 
 </androidx.constraintlayout.widget.ConstraintLayout> 

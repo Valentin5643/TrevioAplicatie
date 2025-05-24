@@ -7,8 +7,8 @@
     android:layout_margin="8dp"
     app:cardCornerRadius="12dp"
     app:cardElevation="2dp"
-    app:cardBackgroundColor="@color/subtask_dark_background"
-    app:strokeColor="@color/quest_card_stroke"
+    app:cardBackgroundColor="?attr/colorSurface"
+    app:strokeColor="?attr/colorOutline"
     app:strokeWidth="0.5dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -22,7 +22,8 @@
             android:layout_height="80dp"
             app:cardCornerRadius="40dp"
             app:cardElevation="4dp"
-            app:strokeColor="@color/welcome_accent"
+            app:cardBackgroundColor="?attr/colorSurfaceVariant"
+            app:strokeColor="?attr/colorPrimary"
             app:strokeWidth="1dp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
@@ -56,7 +57,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:textColor="@color/quest_card_text"
+            android:textColor="?attr/colorOnSurface"
             app:layout_constraintStart_toEndOf="@id/badgeIconContainer"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"/>
@@ -68,7 +69,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginTop="4dp"
-            android:textColor="@color/welcome_text_secondary"
+            android:textColor="?attr/colorOnSurfaceVariant"
             app:layout_constraintStart_toEndOf="@id/badgeIconContainer"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvBadgeName"/>

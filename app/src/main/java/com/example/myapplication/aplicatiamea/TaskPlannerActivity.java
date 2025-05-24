@@ -8,6 +8,10 @@ import android.text.TextWatcher;
 import android.util.Log;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Toast;
+import android.widget.ProgressBar;
+import android.view.View;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -22,56 +26,88 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.Query;
-import android.view.View;
+import com.google.firebase.firestore.ListenerRegistration;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+import com.example.myapplication.aplicatiamea.util.ThemeHelper;
 
+/**
+ * Quick task planning screen - lets users plan and track tasks without dates.
+ */
 public class TaskPlannerActivity extends Activity {
 
-    private static final String TAG = "TaskPlannerActivity";
-
+    private static final String TAG = "TaskPlanner";
+    
+    // Firebase stuff
     private FirebaseFirestore db;
     private FirebaseAuth auth;
     private DocumentReference userRef;
     private CollectionReference tasksRef;
+    private ListenerRegistration taskListener;
+    
+    // UI components
     private TaskAdapter adapter;
-
     private RecyclerView rvTasks;
     private TextInputEditText etNewTask;
     private MaterialButton btnAddTask;
     private MaterialToolbar topAppBar;
+    private ProgressBar loadingBar;
+    private View emptyStateView;
+    
+    // Track task update operations
+    private final AtomicBoolean taskUpdateInProgress = new AtomicBoolean(false);
+    private final Map<String, Long> lastUpdateTimes = new HashMap<>();
+    private static final long UPDATE_THROTTLE_MS = 500; // Prevent double clicks
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeHelper.applyUserTheme(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_task_planner);
 
-        // Initialize Firebase
+        // Find UI components
+        rvTasks = findViewById(R.id.rvTasks);
+        etNewTask = findViewById(R.id.etNewTask);
+        btnAddTask = findViewById(R.id.btnAddTask);
+        topAppBar = findViewById(R.id.topAppBar);
+        loadingBar = findViewById(R.id.progressBar);
+        emptyStateView = findViewById(R.id.emptyView);
+        
+        if (emptyStateView == null) {
+            Log.w(TAG, "Empty state view not found in layout");
+        } else {
+            emptyStateView.setVisibility(View.GONE);
+        }
+        
+        showLoading(true);
+        
+        // Setup Firebase stuff
+        setupFirebase();
+        
+        // Setup UI components
+        setupToolbar();
+        setupRecyclerView();
+        setupAddTask();
+    }
+    
+    private void setupFirebase() {
         db = FirebaseFirestore.getInstance();
         auth = FirebaseAuth.getInstance();
         FirebaseUser currentUser = auth.getCurrentUser();
 
         if (currentUser == null) {
-            Toast.makeText(this, "User not logged in.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Not logged in. Sign in first.", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
+        
         userRef = db.collection("users").document(currentUser.getUid());
         tasksRef = userRef.collection("tasks");
-
-        // Initialize Views
-        rvTasks = findViewById(R.id.rvTasks);
-        etNewTask = findViewById(R.id.etNewTask);
-        btnAddTask = findViewById(R.id.btnAddTask);
-        topAppBar = findViewById(R.id.topAppBar);
-
-        setupToolbar();
-        setupRecyclerView();
-        setupAddTask();
     }
 
     private void setupToolbar() {
@@ -80,23 +116,57 @@ public class TaskPlannerActivity extends Activity {
 
     private void setupRecyclerView() {
         List<Task> taskList = new ArrayList<>();
-        adapter = new TaskAdapter(taskList, this, userRef, null, null);
+        adapter = new TaskAdapter(taskList, this, userRef);
         rvTasks.setLayoutManager(new LinearLayoutManager(this));
         rvTasks.setAdapter(adapter);
 
-        // Listen for Firestore changes and update the adapter
-        tasksRef.orderBy("createdAt", Query.Direction.DESCENDING)
+        // Set up listener for task changes
+        startListeningForTasks();
+    }
+    
+    private void startListeningForTasks() {
+        // Clean up existing listener first
+        if (taskListener != null) {
+            taskListener.remove();
+        }
+        
+        // New query - only get tasks without dates (daily planner tasks)
+        taskListener = tasksRef
+            .whereEqualTo("date", null)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener((snapshots, e) -> {
+                showLoading(false);
+                
+                // Handle errors
                 if (e != null) {
-                    Log.w(TAG, "Listen failed.", e);
+                    Log.w(TAG, "Task listen failed", e);
+                    if (!isNetworkAvailable()) {
+                        Toast.makeText(this, "No connection - using cached data", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "Error loading tasks: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
                     return;
                 }
+                
+                if (snapshots == null || snapshots.isEmpty()) {
+                    // Show empty state if no tasks
+                    showEmptyState(true);
+                    adapter.setTasks(new ArrayList<>());
+                    return;
+                }
+                
+                // Found tasks, convert and display them
+                showEmptyState(false);
                 List<Task> newTasks = new ArrayList<>();
+                
                 for (DocumentSnapshot doc : snapshots) {
                     Task task = convertSnapshotToTask(doc);
-                    if (task != null) newTasks.add(task);
+                    if (task != null) {
+                        newTasks.add(task);
+                    }
                 }
-                adapter.setTasks(newTasks); // You need to add setTasks() to TaskAdapter if not present
+                
+                adapter.setTasks(newTasks);
             });
     }
     
@@ -113,27 +183,29 @@ public class TaskPlannerActivity extends Activity {
                 for (Map<String, Object> stepMap : rawSteps) {
                     String description = (String) stepMap.get("description");
                     Boolean completed = (Boolean) stepMap.get("completed");
+                    Number stabilityObj = (Number) stepMap.get("stability");
+                    int stability = stabilityObj != null ? stabilityObj.intValue() : 0;
+                    
                     Task.Subtask subtask = new Task.Subtask(
                         description != null ? description : "",
-                        completed != null ? completed : false
+                        completed != null ? completed : false,
+                        stability
                     );
                     subtasks.add(subtask);
                 }
                 task.setSteps(subtasks);
-                Log.d(TAG, "Loaded " + subtasks.size() + " subtasks for task: " + task.getId() + 
-                      ", Task completed: " + task.isCompleted());
-
-                // Log each subtask completion status
-                for (int i = 0; i < subtasks.size(); i++) {
-                    Log.d(TAG, "Subtask " + i + ": " + subtasks.get(i).getDescription() + 
-                          " - Completed: " + subtasks.get(i).isCompleted());
-                }
+            } else {
+                // Always ensure we have an initialized list
+                task.setSteps(new ArrayList<>());
             }
         }
         return task;
     }
 
     private void setupAddTask() {
+        // Disable add button until we have text
+        btnAddTask.setEnabled(false);
+        
         etNewTask.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -150,12 +222,22 @@ public class TaskPlannerActivity extends Activity {
         btnAddTask.setOnClickListener(v -> {
             String description = Objects.requireNonNull(etNewTask.getText()).toString().trim();
             if (!description.isEmpty()) {
+                // Check for network before trying to add
+                if (!isNetworkAvailable()) {
+                    Toast.makeText(this, "No internet connection, can't add task now", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
                 addTask(description);
+                btnAddTask.setEnabled(false); // Prevent double submits
             }
         });
     }
 
     private void addTask(String description) {
+        // Show quick loading state
+        btnAddTask.setText("Adding...");
+        
         Task newTask = new Task();
         newTask.setName(description);
         newTask.setCompleted(false);
@@ -166,101 +248,91 @@ public class TaskPlannerActivity extends Activity {
         
         tasksRef.add(newTask)
                 .addOnSuccessListener(documentReference -> {
-                    Log.d(TAG, "Task added with ID: " + documentReference.getId());
+                    Log.d(TAG, "Added task: " + documentReference.getId());
                     etNewTask.setText(""); // Clear input
                     hideKeyboard();
+                    btnAddTask.setText("Add");
+                    btnAddTask.setEnabled(false); // Keep disabled until new text
 
-                    // --- Weekly Quest Integration --- 
-                    // questManager.updateQuestProgress("plan_tasks", 1); // Uncomment and implement if needed
-                    // --- End Quest Integration --- 
-
-                    // Save the full subtasks list for a given task
-                    saveSubtasksToFirestore(documentReference.getId(), newTask.getSteps());
-
+                    // Don't need to save empty subtasks again
                 })
                 .addOnFailureListener(e -> {
-                    Log.w(TAG, "Error adding task", e);
-                    Toast.makeText(TaskPlannerActivity.this, "Error adding task", Toast.LENGTH_SHORT).show();
+                    Log.w(TAG, "Failed to add task", e);
+                    btnAddTask.setText("Add");
+                    btnAddTask.setEnabled(true);
+                    
+                    // Better user feedback based on error
+                    String errorMsg = "Couldn't save task";
+                    if (e.getMessage() != null && e.getMessage().contains("permission")) {
+                        errorMsg = "You don't have permission to add tasks";
+                    } else if (!isNetworkAvailable()) {
+                        errorMsg = "No internet connection";
+                    }
+                    Toast.makeText(TaskPlannerActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
                 });
     }
     
     /**
-     * Update a subtask's completion status in Firestore
+     * Updates a subtask completion state. Uses transactions to make sure things 
+     * don't get messed up if multiple updates happen at the same time.
      */
     public void updateSubtaskCompletion(String taskId, int subtaskIndex, boolean isCompleted) {
         if (taskId == null) {
-            Log.e(TAG, "Cannot update subtask - task ID is null");
+            Log.e(TAG, "Can't update subtask - missing task ID");
             return;
         }
-
-        Log.d(TAG, "updateSubtaskCompletion: taskId=" + taskId + ", subtaskIndex=" + subtaskIndex + ", isCompleted=" + isCompleted);
+        
+        // Prevent rapid clicks on the same item
+        String key = taskId + "_" + subtaskIndex;
+        long now = System.currentTimeMillis();
+        Long lastUpdate = lastUpdateTimes.get(key);
+        if (lastUpdate != null && now - lastUpdate < UPDATE_THROTTLE_MS) {
+            Log.d(TAG, "Ignored rapid subtask update: " + key);
+            return;
+        }
+        lastUpdateTimes.put(key, now);
 
         DocumentReference taskRef = tasksRef.document(taskId);
+
+        // Network check
+        if (!isNetworkAvailable()) {
+            Toast.makeText(this, "No connection - changes will sync when online", 
+                           Toast.LENGTH_SHORT).show();
+        }
 
         db.runTransaction(transaction -> {
             DocumentSnapshot taskSnapshot = transaction.get(taskRef);
             if (!taskSnapshot.exists()) {
-                Log.e(TAG, "Task document does not exist: " + taskId);
-                throw new FirebaseFirestoreException("Task document does not exist: " + taskId, FirebaseFirestoreException.Code.NOT_FOUND);
+                throw new FirebaseFirestoreException("Task not found: " + taskId, 
+                                         FirebaseFirestoreException.Code.NOT_FOUND);
             }
 
             // Get the current task object
             Task task = taskSnapshot.toObject(Task.class);
             if (task == null) {
-                Log.e(TAG, "Failed to convert document to Task");
-                throw new FirebaseFirestoreException("Failed to convert document to Task", FirebaseFirestoreException.Code.INVALID_ARGUMENT);
+                throw new FirebaseFirestoreException("Couldn't parse task", 
+                                         FirebaseFirestoreException.Code.INVALID_ARGUMENT);
             }
 
             task.setId(taskSnapshot.getId());
-            Log.d(TAG, "Retrieved task: " + task.getId());
-
-            // Get the steps list
+            
+            // Make sure we have a steps list
             List<Task.Subtask> steps = task.getSteps();
             if (steps == null) {
                 steps = new ArrayList<>();
                 task.setSteps(steps);
-                Log.d(TAG, "Created new steps list for task");
             }
             
-            // Ensure we have enough steps
+            // Make sure there are enough steps
             while (steps.size() <= subtaskIndex) {
                 steps.add(new Task.Subtask("", false));
-                Log.d(TAG, "Added empty subtask to reach index " + subtaskIndex);
             }
 
-            // Get the specific subtask to update
+            // Update the subtask
             Task.Subtask stepToUpdate = steps.get(subtaskIndex);
-            
-            // Log the current state before making changes
-            Log.d(TAG, "Current subtask state before update: " + 
-                "index=" + subtaskIndex + 
-                ", description='" + stepToUpdate.getDescription() + 
-                "', completed=" + stepToUpdate.isCompleted());
-            
-            // Update the completion status
             stepToUpdate.setCompleted(isCompleted);
             
-            // Log the new state
-            Log.d(TAG, "New subtask state after update: " + 
-                "index=" + subtaskIndex + 
-                ", description='" + stepToUpdate.getDescription() + 
-                "', completed=" + stepToUpdate.isCompleted());
-
-            // Check if all subtasks are now complete
-            boolean allSubtasksComplete = true;
-            for (int i = 0; i < steps.size(); i++) {
-                Task.Subtask step = steps.get(i);
-                if (!step.isCompleted()) {
-                    allSubtasksComplete = false;
-                    Log.d(TAG, "Found incomplete subtask at index " + i + 
-                        ", description='" + step.getDescription() + 
-                        "', completed=" + step.isCompleted());
-                    break;
-                }
-            }
-            Log.d(TAG, "All subtasks complete: " + allSubtasksComplete);
-
-            // Convert steps to a format Firestore can store
+            // Convert steps to Firestore format
             List<Map<String, Object>> stepsAsMaps = new ArrayList<>();
             for (Task.Subtask step : steps) {
                 Map<String, Object> stepMap = new HashMap<>();
@@ -270,66 +342,74 @@ public class TaskPlannerActivity extends Activity {
                 stepsAsMaps.add(stepMap);
             }
 
-            Log.d(TAG, "Preparing to update Firestore with " + stepsAsMaps.size() + " subtasks");
-
-            // Update the steps field in Firestore
+            // Update Firestore (just the steps array)
             transaction.update(taskRef, "steps", stepsAsMaps);
-            Log.d(TAG, "Updated 'steps' field in transaction");
-
-            // MODIFIED: Don't auto-complete parent task when all subtasks are complete
-            // Keep the parent task completion status separate from subtask states
-            // The task completion is only changed when the user explicitly checks the main task checkbox
             
-            /* Original auto-completion code removed:
-            // Also update the task's overall completion status if needed
-            Boolean taskCompleted = taskSnapshot.getBoolean("completed");
-            if ((taskCompleted == null || !taskCompleted) && allSubtasksComplete) {
-                transaction.update(taskRef, "completed", true);
-                Log.d(TAG, "All subtasks complete - setting task as complete");
-            } else if (taskCompleted != null && taskCompleted && !allSubtasksComplete) {
-                transaction.update(taskRef, "completed", false);
-                Log.d(TAG, "Not all subtasks complete - setting task as incomplete");
-            }
-            */
+            // We used to auto-complete parent tasks when all subtasks were done,
+            // but got rid of that since it was confusing - leaving this comment
             
-            Log.d(TAG, "All subtasks complete: " + allSubtasksComplete + 
-                  ", Not changing parent task completion state automatically");
-
             return steps;
-        }).addOnSuccessListener(result -> Log.d(TAG, "Subtask update transaction SUCCESSFUL for taskId=" + taskId +
-                   ", subtaskIndex=" + subtaskIndex +
-                   ", isCompleted=" + isCompleted)).addOnFailureListener(e -> {
-            Log.e(TAG, "Error updating subtask", e);
-            Toast.makeText(this, "Error updating subtask: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }).addOnFailureListener(e -> {
+            Log.e(TAG, "Failed to update subtask", e);
+            
+            String errorMsg = "Couldn't update subtask";
+            if (e instanceof FirebaseFirestoreException) {
+                FirebaseFirestoreException ffe = (FirebaseFirestoreException) e;
+                if (ffe.getCode() == FirebaseFirestoreException.Code.NOT_FOUND) {
+                    errorMsg = "Task was deleted";
+                } else if (ffe.getCode() == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    errorMsg = "You don't have permission to edit this task";
+                }
+            }
+            
+            Toast.makeText(this, errorMsg, Toast.LENGTH_SHORT).show();
         });
     }
 
     /**
-     * Update a task's completion status while preserving subtask states
+     * Updates main task completion status
      */
     public void updateTaskCompletion(String taskId, boolean isCompleted) {
+        // Don't allow updates while one is in progress
+        if (!taskUpdateInProgress.compareAndSet(false, true)) {
+            Log.d(TAG, "Task update already in progress, ignored");
+            return;
+        }
+        
         if (taskId == null) {
-            Log.e(TAG, "Cannot update task - task ID is null");
+            taskUpdateInProgress.set(false);
             return;
         }
         
         DocumentReference taskRef = tasksRef.document(taskId);
-        Log.d(TAG, "Updating task completion: " + taskId + ", completed: " + isCompleted);
         
-        // Use a transaction to ensure atomicity
+        // Use transaction to prevent glitchy updates
         db.runTransaction(transaction -> {
             DocumentSnapshot taskSnapshot = transaction.get(taskRef);
             if (!taskSnapshot.exists()) {
-                throw new FirebaseFirestoreException("Task document does not exist: " + taskId, FirebaseFirestoreException.Code.NOT_FOUND);
+                throw new FirebaseFirestoreException("Task " + taskId + " doesn't exist", 
+                                         FirebaseFirestoreException.Code.NOT_FOUND);
             }
             
-            // Update only the completion status field, preserving subtasks
+            // Just update the main task completed status
             transaction.update(taskRef, "completed", isCompleted);
             
+            // Also update timestamp so it appears at right spot in lists
+            transaction.update(taskRef, "updatedAt", com.google.firebase.Timestamp.now());
+            
             return true;
-        }).addOnSuccessListener(result -> Log.d(TAG, "Task completion update successful")).addOnFailureListener(e -> {
-            Log.e(TAG, "Error updating task completion", e);
-            Toast.makeText(this, "Error updating task: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }).addOnSuccessListener(result -> {
+            Log.d(TAG, "Task completion update success");
+            taskUpdateInProgress.set(false);
+        }).addOnFailureListener(e -> {
+            Log.e(TAG, "Failed to update task", e);
+            taskUpdateInProgress.set(false);
+            
+            // Only show errors if we're marking complete (less annoying)
+            if (isCompleted) {
+                Toast.makeText(this, "Couldn't update task: " + e.getMessage(), 
+                              Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
@@ -342,11 +422,19 @@ public class TaskPlannerActivity extends Activity {
         imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
     }
 
-    // Save the full subtasks list for a given task
+    /**
+     * Updates subtasks for a task in firestore
+     */
     private void saveSubtasksToFirestore(String taskId, List<Task.Subtask> subtasks) {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (subtasks == null || subtasks.isEmpty()) {
+            // Don't waste time saving empty list
+            return;
+        }
+        
+        FirebaseUser user = auth.getCurrentUser();
         if (user == null) return;
-        DocumentReference taskRef = FirebaseFirestore.getInstance()
+        
+        DocumentReference taskRef = db
             .collection("users").document(user.getUid())
             .collection("tasks").document(taskId);
 
@@ -358,6 +446,51 @@ public class TaskPlannerActivity extends Activity {
             stepMap.put("stability", step.getStability());
             stepsAsMaps.add(stepMap);
         }
-        taskRef.update("steps", stepsAsMaps);
+        
+        taskRef.update("steps", stepsAsMaps)
+            .addOnFailureListener(e -> Log.e(TAG, "Failed to save subtasks: " + e.getMessage()));
+    }
+    
+    /**
+     * Checks if we have an internet connection
+     */
+    private boolean isNetworkAvailable() {
+        ConnectivityManager connectivityManager = (ConnectivityManager) 
+            getSystemService(Context.CONNECTIVITY_SERVICE);
+        
+        if (connectivityManager == null) {
+            return false;
+        }
+        
+        NetworkInfo activeNetwork = connectivityManager.getActiveNetworkInfo();
+        return activeNetwork != null && activeNetwork.isConnected();
+    }
+    
+    /**
+     * Shows/hides loading indicator
+     */
+    private void showLoading(boolean isLoading) {
+        if (loadingBar != null) {
+            loadingBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+        }
+    }
+    
+    /**
+     * Shows/hides empty state view
+     */
+    private void showEmptyState(boolean isEmpty) {
+        if (emptyStateView != null) {
+            emptyStateView.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+        }
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Clean up listener to prevent memory leaks
+        if (taskListener != null) {
+            taskListener.remove();
+            taskListener = null;
+        }
     }
 } 

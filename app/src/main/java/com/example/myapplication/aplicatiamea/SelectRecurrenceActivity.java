@@ -8,72 +8,102 @@ import android.widget.NumberPicker;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.myapplication.aplicatiamea.util.ThemeHelper;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 
 public class SelectRecurrenceActivity extends AppCompatActivity {
 
     private static final String TAG = "SelectRecurrenceActivity";
+    
+    // task recurrence config stuff
     private static final int MIN_DAYS = 1;
-    private static final int MAX_DAYS = 30; // Limit to 30 consecutive days
+    private static final int MAX_DAYS = 30; // don't make this higher or it breaks calendar view
     private static final int DEFAULT_DAYS = 1;
-
-    private NumberPicker numberPickerDays;
-    private MaterialButton btnSave;
-    private MaterialButton btnCancel;
-    private MaterialToolbar topAppBar;
+    
+    // ui stuff
+    private NumberPicker daysNumPicker;
+    private MaterialButton saveBtn;
+    private MaterialButton cancelBtn;
+    private MaterialToolbar toolbar;
+    
+    // test data for quick debugging - comment when done
+    // private final int[] testDaysValues = {1, 3, 7, 14};
+    // private int testCounter = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // apply theme crap
+        ThemeHelper.applyUserTheme(this);
+        
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_select_recurrence);
 
-        // Initialize views
-        numberPickerDays = findViewById(R.id.numberPickerDays);
-        btnSave = findViewById(R.id.btnSave);
-        btnCancel = findViewById(R.id.btnCancel);
-        topAppBar = findViewById(R.id.topAppBar);
+        // get views
+        daysNumPicker = findViewById(R.id.numberPickerDays);
+        saveBtn = findViewById(R.id.btnSave);
+        cancelBtn = findViewById(R.id.btnCancel);
+        toolbar = findViewById(R.id.topAppBar);
 
-        setupToolbar();
-        setupNumberPicker();
-        setupButtons();
+        // setup everything
+        setupTopBar();
+        setupNumPicker();
+        initButtons();
     }
 
-    private void setupToolbar() {
-        topAppBar.setNavigationOnClickListener(v -> {
+    private void setupTopBar() {
+        // back button in toolbar
+        toolbar.setNavigationOnClickListener(v -> {
+            // same as cancel
             setResult(RESULT_CANCELED);
             finish();
         });
     }
 
-    private void setupNumberPicker() {
-        numberPickerDays.setMinValue(MIN_DAYS);
-        numberPickerDays.setMaxValue(MAX_DAYS);
+    private void setupNumPicker() {
+        // configure number picker
+        daysNumPicker.setMinValue(MIN_DAYS);
+        daysNumPicker.setMaxValue(MAX_DAYS);
         
-        // Get the currently set recurrence days if we're editing an existing task
+        // get current value if editing existing
         Intent intent = getIntent();
-        int currentRecurrenceDays = intent.getIntExtra("RECURRENCE_DAYS", DEFAULT_DAYS);
+        int currentDays = intent.getIntExtra("RECURRENCE_DAYS", DEFAULT_DAYS);
         
-        // Set the number picker to the current value, or default if it's a new task
-        numberPickerDays.setValue(currentRecurrenceDays);
+        // DEBUG: swap this for quick testing
+        // int days = testDaysValues[testCounter++ % testDaysValues.length];
+        // daysNumPicker.setValue(days);
+        
+        // set to current or default value
+        daysNumPicker.setValue(currentDays);
+        
+        // limit keyboard input on some devices
+        daysNumPicker.setDescendantFocusability(NumberPicker.FOCUS_BLOCK_DESCENDANTS);
     }
 
-    private void setupButtons() {
-        btnSave.setOnClickListener(v -> {
-            // Get the selected number of days
-            int selectedDays = numberPickerDays.getValue();
+    private void initButtons() {
+        // setup save button
+        saveBtn.setOnClickListener(v -> {
+            // get selected value
+            int selectedDays = daysNumPicker.getValue();
             Log.d(TAG, "Selected recurrence: " + selectedDays + " days");
             
-            // Return the selection to the caller
-            Intent resultIntent = new Intent();
-            resultIntent.putExtra("RECURRENCE_DAYS", selectedDays);
-            setResult(RESULT_OK, resultIntent);
+            // return to caller
+            Intent resultData = new Intent();
+            resultData.putExtra("RECURRENCE_DAYS", selectedDays);
+            setResult(RESULT_OK, resultData);
             finish();
         });
 
-        btnCancel.setOnClickListener(v -> {
+        // setup cancel button
+        cancelBtn.setOnClickListener(v -> {
             setResult(RESULT_CANCELED);
             finish();
         });
+    }
+    
+    // might need this if we add validation later
+    private boolean isValidSelection() {
+        // always valid for now 
+        return true;
     }
 } 
