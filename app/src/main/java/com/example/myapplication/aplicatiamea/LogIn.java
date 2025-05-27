@@ -27,29 +27,25 @@ import java.util.Map;
 
 public class LogIn extends AppCompatActivity {
     private static final String TAG = "LogIn";
-    
-    // UI stuff
     private EditText emailInput, passwordInput;
     private Button loginButton;
     private TextView signUp;
-    
-    // Firebase junk
+
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
-    
-    // misc flags
+
     private boolean loginInProgress = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // setup theme
+
         ThemeHelper.applyUserTheme(this);
         
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_log_in);
 
-        // Skip login screen if user already authenticated - saves time on app restart
-        try {
+
+           try {
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
             if(user != null) {
                 startActivity(new Intent(LogIn.this, LoggedInActivity.class));
@@ -60,7 +56,7 @@ public class LogIn extends AppCompatActivity {
             Log.e(TAG, "Error checking current user", e);
         }
 
-        // Firebase connection test - fail early if services unavailable
+
         try {
             mAuth = FirebaseAuth.getInstance();
             db = FirebaseFirestore.getInstance();
@@ -72,7 +68,7 @@ public class LogIn extends AppCompatActivity {
             Log.e(TAG, "Firebase initialization failed in LogIn", e);
             Toast.makeText(this, "Authentication service unavailable. Please check your connection.", Toast.LENGTH_LONG).show();
             
-            // Try to continue anyway - some functionality might still work
+
             try {
                 mAuth = FirebaseAuth.getInstance();
                 db = FirebaseFirestore.getInstance();
@@ -81,16 +77,15 @@ public class LogIn extends AppCompatActivity {
             }
         }
         
-        // Get UI things
+
         findViews();
 
-        // Debug credentials for faster testing during development
+        // Debug
         if (emailInput.getText().toString().isEmpty()) {
             //loginEmail.setText("test@test.com");
             //loginPassword.setText("testtest");
         }
 
-        // click handlers
         loginButton.setOnClickListener(v -> doLogin());
         signUp.setOnClickListener(v -> {
             startActivity(new Intent(LogIn.this, MainActivity.class));
@@ -121,7 +116,6 @@ public class LogIn extends AppCompatActivity {
     }
 
     private void doLogin() {
-        // Prevent double-tap login attempts that could cause race conditions
         if (loginInProgress) {
             return;
         }
@@ -143,7 +137,6 @@ public class LogIn extends AppCompatActivity {
             return;
         }
 
-        // Clear previous error states
         emailInput.setError(null);
         passwordInput.setError(null);
         
@@ -154,14 +147,12 @@ public class LogIn extends AppCompatActivity {
                 loginInProgress = false;
                 
                 if (task.isSuccessful()) {
-                    // User doc creation happens on first login for new users
                     createUserDataIfMissing(email);
                     
                     Toast.makeText(LogIn.this, "Login successful", Toast.LENGTH_SHORT).show();
                     startActivity(new Intent(LogIn.this, LoggedInActivity.class));
                     finish();
                 } else {
-                    // Better error messages based on Firebase auth error codes
                     String errorMessage = "Login failed";
                     Exception exception = task.getException();
                     
@@ -196,8 +187,7 @@ public class LogIn extends AppCompatActivity {
                 Toast.makeText(LogIn.this, "Login failed due to connection issues. Please try again.", Toast.LENGTH_LONG).show();
             });
     }
-    
-    // Initialize default user data for first-time users - prevents null reference errors later
+
     private void createUserDataIfMissing(String email) {
         FirebaseUser user = mAuth.getCurrentUser();
         if (user == null) return;
@@ -220,16 +210,5 @@ public class LogIn extends AppCompatActivity {
                     .addOnFailureListener(e -> Log.e(TAG, "Error creating user doc", e));
             }
         }).addOnFailureListener(e -> Log.e(TAG, "Error checking user doc", e));
-    }
-    
-    // Username extraction for display purposes - not used currently but kept for future features
-    private String getUsernameFromEmail(String email) {
-        int atIndex = email.indexOf('@');
-        if (atIndex > 0) {
-            String username = email.substring(0, atIndex);
-            // Capitalize first letter
-            return username.substring(0, 1).toUpperCase() + username.substring(1);
-        }
-        return email; // backup
     }
 }

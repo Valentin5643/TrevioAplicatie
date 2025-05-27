@@ -21,8 +21,11 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FieldValue;
 
+/**
+ * Dialog for celebrating level ups
+ */
 public class LevelUpDialog extends Dialog {
-    private final int newLevel;
+    private long newLevel;
     private TextView tvNewLevel;
     private TextView tvGoldAmount;
     private TextView tvItemDescription;
@@ -36,8 +39,15 @@ public class LevelUpDialog extends Dialog {
         void onRewardsClaimed(int goldAmount);
     }
     
-    public LevelUpDialog(@NonNull Context context, int newLevel) {
+    public LevelUpDialog(Context context, int theme) {
+        super(context, theme);
+    }
+    
+    public LevelUpDialog(Context context) {
         super(context);
+    }
+    
+    public void setNewLevel(long newLevel) {
         this.newLevel = newLevel;
     }
     
@@ -64,14 +74,14 @@ public class LevelUpDialog extends Dialog {
         btnContinue = findViewById(R.id.claimButton);
         
         // Set level text
-        tvNewLevel.setText("You've reached level " + newLevel + "!");
+        tvNewLevel.setText("Congratulations! You reached Level " + newLevel + "!");
         
         // Calculate gold bonus based on level
-        int goldBonus = calculateGoldBonus(newLevel);
+        int goldBonus = calculateGoldBonus((int) newLevel);
         tvGoldAmount.setText("+" + goldBonus + " gold coins");
         
         // Set item unlock description based on level
-        setItemUnlockDescription(newLevel);
+        setItemUnlockDescription((int) newLevel);
         
         // Set continue button click listener
         btnContinue.setOnClickListener(v -> {

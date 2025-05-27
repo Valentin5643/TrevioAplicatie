@@ -34,29 +34,28 @@ import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
 import com.example.myapplication.aplicatiamea.repository.QuestManager;
+import java.util.Map;
+import java.util.HashMap;
 
 public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHolder> {
-    // debug tag
     private static final String TAG = "TaskListAdapter"; 
     
-    // main data stuff
-    private List<Task> tasks;  // should be final but need to update sometimes
-    private Context ctx;      // activity context
+
+    private List<Task> tasks;
+    private Context ctx;
     private FirebaseFirestore db;
     
     // time stuff
     private TimeZone tz;
     private String today;
     
-    // anti-spam protection cuz users are CRAZY
+    // anti-spam protection
     private ConcurrentHashMap<String, Boolean> taskLocks = new ConcurrentHashMap<>(); 
     private ConcurrentHashMap<String, Boolean> subtaskLocks = new ConcurrentHashMap<>();
     private long COOLDOWN_MS;
-    
-    // streak helper
+
     private StreakHelper streakHelper;
-    
-    // debug and testing crap
+
     private int lastNotifiedPos = -1;
     private boolean isDestroyed = false;
 
@@ -69,22 +68,18 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
                            ConcurrentHashMap<String, Boolean> subtasksInProgress,
                            long antiSpamCooldown,
                            StreakHelper streakHelper) {
-        // basic setup
         this.tasks = tasks;
         this.ctx = context;
         this.db = db;
         this.tz = userTimeZone;
         this.today = actualTodayDateString;
-        
-        // use passed-in locks if available
+
         this.taskLocks = tasksInProgress != null ? tasksInProgress : new ConcurrentHashMap<>();
         this.subtaskLocks = subtasksInProgress != null ? subtasksInProgress : new ConcurrentHashMap<>();
-        
-        // other stuff
+
         this.COOLDOWN_MS = antiSpamCooldown;
         this.streakHelper = streakHelper;
-        
-        //Log.d(TAG, "Created adapter with " + tasks.size() + " tasks for date " + actualTodayDateString);
+
     }
 
     @NonNull
@@ -96,7 +91,6 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        // just use bind method in viewholder
         holder.bind(tasks.get(position));
     }
 
@@ -104,24 +98,10 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
     public int getItemCount() {
         return tasks.size();
     }
-    
-    // only used by TaskListActivity when tasks change
-    public void updateTasks(List<Task> newTasks) {
-        this.tasks = newTasks;
-        // could use DiffUtil but meh, too much work for now
-        notifyDataSetChanged();
-    }
-    
-    // called when app is exiting to prevent leaks
-    public void cleanup() {
-        isDestroyed = true;
-        // not critical but helps GC
-        tasks = null;
-        ctx = null;
-    }
+
 
     class ViewHolder extends RecyclerView.ViewHolder {
-        // ui components
+
         CheckBox checkBox;
         TextView taskText;
         TextView taskTime;
@@ -140,17 +120,8 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
         }
 
         void bind(Task task) {
-            // useful for debugging subtask issues
-            // Log.d("DEBUG_SUBTASKS", "Binding task: " + task.getId() + 
-            //      ", Name: " + task.getName() + 
-            //      ", RecurrenceGroupId: " + task.getRecurrenceGroupId() +
-            //      ", RecurrenceDays: " + task.getRecurrenceDays() +
-            //      ", Subtasks count: " + (task.getSteps() != null ? task.getSteps().size() : "null"));
-            
-            // basic info
-            taskText.setText(task.getName());
 
-            // set description if exists
+            taskText.setText(task.getName());
             TextView descView = itemView.findViewById(R.id.taskDescription);
             if (task.getDescription() != null && !task.getDescription().isEmpty()) {
                 descView.setText(task.getDescription());
@@ -160,12 +131,10 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
                 descView.setVisibility(View.GONE);
             }
 
-            // show recurring indicator if needed
             boolean isRecurring = task.getRecurrenceDays() > 1 || 
                                (task.getRecurrenceGroupId() != null && !task.getRecurrenceGroupId().isEmpty());
             recurringIcon.setVisibility(isRecurring ? View.VISIBLE : View.GONE);
 
-            // set time display if task has a deadline
             if (task.getDeadlineTimestamp() > 0) {
                 SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm a", Locale.getDefault());
                 timeFormat.setTimeZone(tz);
@@ -175,29 +144,28 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
                 taskTime.setVisibility(View.GONE);
             }
 
-            // update text style based on completion
+
             updateTextStyle(task.isCompleted());
 
-            // handle checkbox state, important to reset listener first!
             checkBox.setOnCheckedChangeListener(null);
             checkBox.setChecked(task.isCompleted());
 
-            // figure out if task can be edited today
+
             final Context itemContext = itemView.getContext();
             boolean isForToday = TaskScheduler.isTaskScheduledForToday(task, tz, today);
-            boolean canEdit = isForToday;  // simple for now, but might add more conditions later
+            boolean canEdit = isForToday;
             
-            // don't allow edits if task is being processed
+
             boolean isTaskBusy = taskLocks.getOrDefault(task.getId(), false);
             checkBox.setEnabled(canEdit && !isTaskBusy);
 
-            // now setup the listener for checkbox clicks
+
             checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 if (!canEdit || taskLocks.getOrDefault(task.getId(), false)) {
-                    // revert
+
                     checkBox.setOnCheckedChangeListener(null);
                     checkBox.setChecked(!isChecked);
-                    // re-attach minimal
+
                     checkBox.setOnCheckedChangeListener((b, c) -> {});
                     if (taskLocks.getOrDefault(task.getId(), false)) {
                         Toast.makeText(itemContext, "Please wait...", Toast.LENGTH_SHORT).show();
@@ -222,13 +190,12 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
             editButton.setEnabled(canEdit);
             editButton.setOnClickListener(v -> {
                 if (!canEdit) return;
-                
-                // Check if this is a recurring task
+
                 boolean isRecurringTask = task.getRecurrenceDays() > 1 || 
                                      (task.getRecurrenceGroupId() != null && !task.getRecurrenceGroupId().isEmpty());
                 
                 if (isRecurringTask) {
-                    // Show options for recurring tasks
+
                     AlertDialog.Builder builder = new AlertDialog.Builder(itemContext);
                     builder.setTitle("Task Options");
                     builder.setItems(new CharSequence[]{
@@ -238,21 +205,21 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
                             "Delete All Tasks in Series"
                     }, (dialog, which) -> {
                         switch (which) {
-                            case 0: // Edit This Task
+                            case 0:
                                 openEditTaskActivity(itemContext, task.getId(), false);
                                 break;
-                            case 1: // Edit All Tasks in Series
+                            case 1:
                                 if (itemContext instanceof TaskListActivity) {
                                     ((TaskListActivity) itemContext).showEditAllTasksDialog(
                                             task.getRecurrenceGroupId());
                                 }
                                 break;
-                            case 2: // Delete This Task
+                            case 2:
                                 if (itemContext instanceof TaskListActivity) {
                                     ((TaskListActivity) itemContext).showDeleteDialog(task.getId());
                                 }
                                 break;
-                            case 3: // Delete All Tasks in Series
+                            case 3:
                                 if (itemContext instanceof TaskListActivity) {
                                     ((TaskListActivity) itemContext).showDeleteSeriesDialog(
                                             task.getRecurrenceGroupId());
@@ -262,7 +229,6 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
                     });
                     builder.show();
                 } else {
-                    // Original behavior for non-recurring tasks
                     AlertDialog.Builder builder = new AlertDialog.Builder(itemContext);
                     builder.setTitle("Task Options");
                     builder.setItems(new CharSequence[]{"Edit Task", "Delete Task"}, (dialog, which) -> {
@@ -283,12 +249,11 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
             
             itemView.setOnLongClickListener(v -> {
                 if (itemContext instanceof TaskListActivity) {
-                    // For recurring tasks, show the special options dialog
                     boolean isPartOfSeries = task.getRecurrenceDays() > 1 || 
                                          (task.getRecurrenceGroupId() != null && !task.getRecurrenceGroupId().isEmpty());
                     
                     if (isPartOfSeries) {
-                        editButton.performClick(); // Reuse the options dialog
+                        editButton.performClick();
                     } else {
                         ((TaskListActivity) itemContext).showDeleteDialog(task.getId());
                     }
@@ -296,13 +261,10 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
                 return true;
             });
 
-            // subtasks
             subtaskContainer.removeAllViews();
             List<Task.Subtask> steps = task.getSteps();
             if (steps != null && !steps.isEmpty()) {
-                // [DEBUG] Log that we're displaying subtasks
-                Log.d("DEBUG_SUBTASKS", "Displaying " + steps.size() + " subtasks for task: " + task.getId());
-                
+
                 subtaskContainer.setVisibility(View.VISIBLE);
                 for (int i = 0; i < steps.size(); i++) {
                     Task.Subtask subtask = steps.get(i);
@@ -346,10 +308,6 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
                     subtaskContainer.addView(subtaskView);
                 }
             } else {
-                // [DEBUG] Log that no subtasks are being displayed
-                Log.d("DEBUG_SUBTASKS", "No subtasks to display for task: " + task.getId() + 
-                      " (steps is " + (steps == null ? "null" : "empty") + ")");
-                
                 subtaskContainer.setVisibility(View.GONE);
             }
         }
@@ -393,14 +351,12 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
         }
 
         private void updateSubtaskCompletion(String taskId, int subtaskIndex, boolean isCompleted) {
-            // if the adapter is gone, don't bother
             if (isDestroyed) return;
             
             SubtaskTransactionHandler.updateSubtaskCompletion(db, taskId, subtaskIndex, isCompleted,
                 new SubtaskTransactionHandler.SubtaskTransactionCallback() {
                     @Override
                     public void onSuccess(SubtaskTransactionHandler.SubtaskTransactionResult result) {
-                        // we might be destroyed by now
                         if (isDestroyed) return;
                         
                         subtaskLocks.put(taskId + "_" + subtaskIndex, false);
@@ -409,10 +365,20 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
                             localTask.getSteps().get(subtaskIndex).setCompleted(isCompleted);
                             notifyDataSetChanged();
                         }
+                        Log.d("QuestDebug", "Firestore subtask update succeeded for subtask " + subtaskIndex + " of task " + taskId);
+                        Log.d("QuestDebug", "questManager is not available in TaskListAdapter, using fallback. userRef will be constructed inline.");
+                        Log.d("QuestDebug", "Subtask checkbox toggled: isCompleted=" + isCompleted);
+                        FirebaseUser user = com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
+                        if (user != null) {
+                            DocumentReference fallbackUserRef = com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("users").document(user.getUid());
+                            com.example.myapplication.aplicatiamea.repository.QuestManager qm = new com.example.myapplication.aplicatiamea.repository.QuestManager(user.getUid(), ctx);
+                            qm.recordSubtaskCompletion(isCompleted ? 1 : -1, fallbackUserRef);
+                        } else {
+                            Log.e("QuestDebug", "No FirebaseUser available for fallback QuestManager.");
+                        }
                     }
                     @Override
                     public void onFailure(Exception e) {
-                        // bail if destroyed
                         if (isDestroyed) return;
                         
                         subtaskLocks.put(taskId + "_" + subtaskIndex, false);
@@ -423,7 +389,6 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
         }
 
         private Task findTaskById(String targetId) {
-            // simple linear search, don't need hashmap for small lists
             for (Task t : tasks) {
                 if (targetId.equals(t.getId())) return t;
             }
@@ -435,77 +400,83 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
         }
 
         private void updateTaskCompletion(Task task, Context context, boolean desiredState) {
-            // quick null checks
-            if (task == null || task.getId() == null) return;
-            if (isDestroyed) return;
-            
-            // user auth check
-            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-            if (user == null) {
-                Toast.makeText(context, "Authentication error", Toast.LENGTH_SHORT).show();
+            if (task == null || task.getId() == null || task.getId().isEmpty()) {
+                Log.e(TAG, "Task is null or has invalid ID, can't update completion");
                 return;
             }
-            
-            // grab db refs
+
+
+            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+            if (user == null) {
+                Toast.makeText(context, "Please log in to save task state", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
             DocumentReference userRef = db.collection("users").document(user.getUid());
             DocumentReference taskRef = userRef.collection("tasks").document(task.getId());
-            
-            // short-circuit if task is already in the state we want
-            if (task.isCompleted() == desiredState) return;
-            
-            // update the task in firestore
-            taskRef.update("completed", desiredState)
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("completed", desiredState);
+
+            if (desiredState && task.getSteps() != null && !task.getSteps().isEmpty()) {
+                List<Map<String, Object>> updatedSteps = new ArrayList<>();
+                
+                for (Task.Subtask subtask : task.getSteps()) {
+                    Map<String, Object> stepMap = new HashMap<>();
+                    stepMap.put("description", subtask.getDescription());
+                    stepMap.put("completed", true);
+                    stepMap.put("stability", subtask.getStability());
+                    updatedSteps.add(stepMap);
+                }
+                
+                updates.put("steps", updatedSteps);
+                Log.d(TAG, "Also marking all " + updatedSteps.size() + " subtasks as complete");
+            }
+
+            long now = System.currentTimeMillis();
+            if (desiredState) {
+                updates.put("completedAt", now);
+            } else {
+                updates.put("completedAt", null);
+            }
+
+            taskRef.update(updates)
                 .addOnSuccessListener(aVoid -> {
-                    // might be destroyed by now
-                    if (isDestroyed) return;
-                    
-                    // update local state
-                    int pos = tasks.indexOf(task);
-                    if (pos != -1) {
-                        task.setCompleted(desiredState);
-                        notifyItemChanged(pos);
+                    String actionText = desiredState ? "completed" : "marked incomplete";
+                    Log.d(TAG, "Task " + task.getName() + " " + actionText);
+
+                    task.setCompleted(desiredState);
+                    if (desiredState && task.getSteps() != null) {
+                        for (Task.Subtask subtask : task.getSteps()) {
+                            subtask.setCompleted(true);
+                        }
                     }
-                    
-                    // do some quest stuff
-                    QuestManager qm = new QuestManager(user.getUid(), context);
+
+                    notifyItemChanged(getAdapterPosition());
+
+                    QuestManager questManager = new QuestManager(user.getUid(), context);
                     if (desiredState) {
-                        // task completed
-                        if (context instanceof TaskListActivity) {
-                            // award points and xp
-                            ((TaskListActivity) context).awardPointsAndXpInTransaction(userRef, task.getDifficulty(), task.getId());
-                            qm.recordTaskCompletion(task, userRef);
+                        questManager.recordTaskCompletion(task, userRef);
+
+                        if (streakHelper != null) {
+                            updateCompletedDates(now);
                         }
-                        
-                        // also count subtasks
-                        if (task.getSteps() != null && !task.getSteps().isEmpty()) {
-                            int count = 0;
-                            for (Task.Subtask s : task.getSteps()) if (s.isCompleted()) count++;
-                            if (count > 0) qm.trackSubtaskFinish(count, userRef);
-                        }
-                        
-                        // check if we completed all for today
-                        checkDailyCompletionBonus(task.getDeadlineTimestamp());
                     } else {
-                        // task uncompleted
-                        if (context instanceof TaskListActivity) {
-                            ((TaskListActivity) context).deductPointsAndXpInTransaction(userRef, task.getId());
+                        questManager.undoTaskCompletion(task, userRef);
+
+                        if (streakHelper != null) {
+                            updateCompletedDates(now);
                         }
-                        qm.recordTaskUndo(task, userRef);
                     }
-                    
-                    // update streaks
-                    updateCompletedDates(task.getDeadlineTimestamp());
                 })
                 .addOnFailureListener(e -> {
-                    // might be destroyed by now
-                    if (isDestroyed) return;
-                    
-                    // show error and refresh UI
-                    Log.e(TAG, "Failed to update task: " + e.getMessage());
-                    Toast.makeText(context, "Error updating task. Please try again.", Toast.LENGTH_SHORT).show();
-                    int pos = tasks.indexOf(task);
-                    if (pos != -1) notifyItemChanged(pos);
-                    notifyDataSetChanged();
+                    Log.e(TAG, "Failed to update task " + task.getId(), e);
+                    Toast.makeText(context, "Failed to update task: " + e.getMessage(), 
+                           Toast.LENGTH_SHORT).show();
+
+                    checkBox.setOnCheckedChangeListener(null);
+                    checkBox.setChecked(!desiredState);
+                    checkBox.setOnCheckedChangeListener((b, c) -> {});
                 });
         }
 
@@ -517,15 +488,8 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
         }
     }
 
-    /**
-     * Updates the completedDates list in Firestore and triggers streak update.
-     * This is called whenever a task is completed/uncompleted.
-     */
     public void updateCompletedDates(long dateTimeTimestamp) {
-        // bail if destroyed
         if (isDestroyed) return;
-        
-        // can't do anything without a timestamp
         if (dateTimeTimestamp <= 0) {
             Log.w(TAG, "Invalid timestamp for updateCompletedDates: " + dateTimeTimestamp);
             return;
@@ -535,8 +499,7 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         sdf.setTimeZone(tz);
         String dateString = sdf.format(taskDate);
-        
-        // more validation
+
         if (dateString == null) {
             Log.e(TAG, "Couldn't format date from timestamp: " + dateTimeTimestamp);
             return;
@@ -548,8 +511,7 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
             Log.e(TAG, "User not logged in, can't update completed dates");
             return;
         }
-        
-        // do the work
+
         DocumentReference userRef = db.collection("users").document(user.getUid());
         userRef.collection("tasks").whereEqualTo("date", dateString).get()
             .addOnSuccessListener(querySnapshot -> {
@@ -558,14 +520,12 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
                     Log.d(TAG, "No tasks found for date: " + dateString);
                     return;
                 }
-                
-                // run a transaction to update the completed dates list
+
                 db.runTransaction(transaction -> {
                     DocumentSnapshot userDoc = transaction.get(userRef);
                     List<String> completedDates = userDoc.contains("completedDates")
                             ? (List<String>) userDoc.get("completedDates") : new ArrayList<>();
-                    
-                    // check if all tasks for the date are completed
+
                     boolean allComplete = true;
                     for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
                         Boolean comp = doc.getBoolean("completed");
@@ -574,8 +534,7 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
                             break; 
                         }
                     }
-                    
-                    // update the list if needed
+
                     boolean changed = false;
                     if (allComplete && !completedDates.contains(dateString)) {
                         completedDates.add(dateString);
@@ -583,8 +542,7 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
                     } else if (!allComplete && completedDates.remove(dateString)) {
                         changed = true;
                     }
-                    
-                    // only update firestore if we changed something
+
                     if (changed) {
                         Collections.sort(completedDates);
                         transaction.update(userRef, "completedDates", completedDates);
@@ -592,10 +550,8 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
                     
                     return completedDates;
                 }).addOnSuccessListener(updatedDates -> {
-                    // might be destroyed by now
                     if (isDestroyed) return;
-                    
-                    // update streak if helper exists
+
                     if (streakHelper != null) {
                         streakHelper.updateStreak(userRef, updatedDates, today, new StreakHelper.StreakUpdateCallback() {
                             @Override public void onSuccess(int newStreak) { 
@@ -609,84 +565,13 @@ public class TaskListAdapter extends RecyclerView.Adapter<TaskListAdapter.ViewHo
                         });
                     }
                 }).addOnFailureListener(e -> {
-                    // might be destroyed by now
                     if (isDestroyed) return;
                     Log.e(TAG, "Transaction failed: " + e.getMessage());
                 });
             })
             .addOnFailureListener(e -> {
-                // might be destroyed by now
                 if (isDestroyed) return;
                 Log.e(TAG, "Failed to query tasks: " + e.getMessage());
             });
     }
-
-    /**
-     * Checks if all tasks for a date are complete and awards daily bonus points.
-     * Only called when completing a task (not uncompleting).
-     */
-    public void checkDailyCompletionBonus(long dateTimeTimestamp) {
-        // bail if destroyed
-        if (isDestroyed) return;
-        
-        // can't do anything without a timestamp
-        if (dateTimeTimestamp <= 0) return;
-        
-        // get the date string
-        Date taskDate = new Date(dateTimeTimestamp);
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-        sdf.setTimeZone(tz);
-        String dateString = sdf.format(taskDate);
-        
-        // need user
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) return;
-        
-        // check if all tasks for the date are completed
-        DocumentReference userRef = db.collection("users").document(user.getUid());
-        userRef.collection("tasks").whereEqualTo("date", dateString).get()
-            .addOnSuccessListener(querySnapshot -> {
-                // no tasks for this date
-                if (querySnapshot.isEmpty()) return;
-                
-                // check if all are completed
-                boolean allDone = true;
-                for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
-                    Boolean comp = doc.getBoolean("completed");
-                    if (comp == null || !comp) { 
-                        allDone = false; 
-                        break; 
-                    }
-                }
-                
-                // award bonus if all done
-                if (allDone) {
-                    // give em bonus points
-                    ((TaskListActivity) ctx).awardDailyBonusInTransaction(userRef, dateString);
-                    
-                    // update their weekly quest progress
-                    QuestManager qm = new QuestManager(user.getUid(), ctx);
-                    qm.logWeeklyDayCompletion();
-                    
-                    // show notification if we haven't already
-                    int pos = getAdapterPosition();
-                    if (pos != lastNotifiedPos) {
-                        // store so we don't show it again
-                        lastNotifiedPos = pos;
-                        
-                        // maybe show a toast for completion
-                        Toast.makeText(ctx, "All tasks completed for today!", Toast.LENGTH_SHORT).show();
-                    }
-                }
-            })
-            .addOnFailureListener(e -> {
-                // silently fail, not critical
-                Log.e(TAG, "Failed to query tasks for bonus: " + e.getMessage());
-            });
-    }
-    
-    // hacky way to get position in adapter outside viewholder
-    private int getAdapterPosition() {
-        return tasks != null ? tasks.size() : 0;
-    }
-} 
+}

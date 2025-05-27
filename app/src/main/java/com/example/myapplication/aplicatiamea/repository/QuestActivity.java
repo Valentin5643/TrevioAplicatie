@@ -1,13 +1,15 @@
-package com.example.myapplication.aplicatiamea;
+package com.example.myapplication.aplicatiamea.repository;
 
 import android.os.Bundle;
 import android.app.Activity;
 import android.widget.Button;
 import java.util.List;
 import java.util.ArrayList;
+
+import com.example.myapplication.aplicatiamea.R;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.example.myapplication.aplicatiamea.repository.QuestManager;
+
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -29,22 +31,16 @@ import com.google.android.material.button.MaterialButton;
 import java.util.HashSet;
 import java.util.Set;
 import com.example.myapplication.aplicatiamea.util.ThemeHelper;
-import com.example.myapplication.aplicatiamea.repository.RewardClaimListener;
+import com.google.firebase.firestore.DocumentReference;
 
-/**
- * Shows daily and weekly challenges/quests for the player.
- * Handles quest display, completion tracking, and rewards.
- */
-public class ChallengesActivity extends Activity {
+public class QuestActivity extends Activity {
     private static final String TAG = "QuestScreen";
     private QuestManager questManager;
     private String uid;
-    
-    // Caching sets for smoother UI updates
+
     private final Set<String> displayedDailyQuestIds = new HashSet<>();
     private final Set<String> displayedWeeklyQuestIds = new HashSet<>();
-    
-    // UI Components
+
     private LinearLayout dailyContainer;
     private LinearLayout weeklyContainer;
     private TextView emptyStateView;
@@ -53,15 +49,14 @@ public class ChallengesActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyUserTheme(this);
         super.onCreate(savedInstanceState);
-        
-        // Enable edge-to-edge display
+
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false); 
         setContentView(R.layout.activity_challenges);
 
         setupEdgeToEdgeUI();
         setupBackButton();
         
-        // Auth check
+
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser == null) {
             Log.e(TAG, "Not logged in, can't load quests");
@@ -71,39 +66,63 @@ public class ChallengesActivity extends Activity {
         }
 
         uid = currentUser.getUid();
-        
-        // Cache container references
+
         weeklyContainer = findViewById(R.id.weeklyChallengesContainer);
         dailyContainer = findViewById(R.id.dailyChallengesContainer);
         emptyStateView = findViewById(R.id.emptyStateMessage);
         
         if (emptyStateView == null) {
-            // Fallback if layout doesn't have the empty state view
             Log.w(TAG, "Empty state view not found in layout");
         } else {
             emptyStateView.setVisibility(View.GONE); // Hide initially
         }
         
         try {
-            // Initialize quest manager
             questManager = new QuestManager(uid, this);
-            
-            // First load, might be empty
+
             questManager.issueDailyQuests();
             questManager.makeWeeklyQuests();
 
-            // Setup listeners for quests
             setupQuestListeners();
             
         } catch (Exception e) {
             Log.e(TAG, "Failed to initialize quest system: " + e.getMessage());
             Toast.makeText(this, "Quest system error", Toast.LENGTH_SHORT).show();
-            
-            // Show something instead of a blank screen
+
             if (emptyStateView != null) {
                 emptyStateView.setText("Failed to load quests. Try again later.");
                 emptyStateView.setVisibility(View.VISIBLE);
             }
+        }
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if (questManager != null && uid != null) {
+            questManager.cleanupExpiredTimeBoundQuests();
+
+            FirebaseFirestore db = FirebaseFirestore.getInstance();
+            DocumentReference userRef = db.collection("users").document(uid);
+
+            questManager.forceQuestRefresh(userRef);
+
+            db.collection("users").document(uid)
+              .collection("questInstances")
+              .whereEqualTo("status", "COMPLETED")
+              .get()
+              .addOnSuccessListener(snapshot -> {
+                  if (!snapshot.isEmpty()) {
+                      Log.d(TAG, "Found " + snapshot.size() + " completed quests, refreshing UI");
+
+                      setupQuestListeners();
+                  }
+              })
+              .addOnFailureListener(e -> Log.e(TAG, "Failed to query completed quests: " + e.getMessage()));
+
+            questManager.issueDailyQuests();
+            questManager.makeWeeklyQuests();
         }
     }
     
@@ -113,7 +132,6 @@ public class ChallengesActivity extends Activity {
 
         ViewCompat.setOnApplyWindowInsetsListener(rootLayout, (v, windowInsets) -> {
             Insets insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
-            // Apply padding to the scroll view for edge-to-edge display
             contentScrollView.setPadding(
                 contentScrollView.getPaddingLeft() + insets.left,
                 contentScrollView.getPaddingTop() + insets.top,
@@ -131,7 +149,6 @@ public class ChallengesActivity extends Activity {
     private void setupQuestListeners() {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
         
-        // Calculate time boundaries for sorting
         Calendar cal = Calendar.getInstance(TimeZone.getDefault());
         cal.set(Calendar.HOUR_OF_DAY, 0);
         cal.set(Calendar.MINUTE, 0);
@@ -142,10 +159,7 @@ public class ChallengesActivity extends Activity {
         cal.set(Calendar.DAY_OF_WEEK, cal.getFirstDayOfWeek());
         long startOfWeek = cal.getTimeInMillis();
 
-        // Weekly quests listener
         setupWeeklyQuestListener(db, startOfWeek);
-        
-        // Daily quests listener
         setupDailyQuestListener(db, startOfDay);
     }
     
@@ -186,13 +200,10 @@ public class ChallengesActivity extends Activity {
                     return;
                 }
                 
-                // Handle quest count
                 int questCount = snap.size();
                 if (questCount > 3) {
-                    // Too many quests, clean up extras
                     questManager.cleanupAllExpiredQuests();
                 } else if (questCount < 3) {
-                    // Not enough quests, generate more
                     questManager.issueDailyQuests();
                 }
                 
@@ -203,14 +214,11 @@ public class ChallengesActivity extends Activity {
     private void handleFirestoreError(String questType, FirebaseFirestoreException err) {
         Log.e(TAG, "Error loading " + questType + ": " + err.getMessage());
         
-        // Better Firestore error handling
         if (QuestManager.handleFirestoreError(err, this, true)) {
-            // Already handled with dialog/toast
             return;
         }
         
-        // Generic fallback error
-        Toast.makeText(this, 
+        Toast.makeText(this,
             "Failed to load " + questType + ". Check your connection.", 
             Toast.LENGTH_SHORT).show();
     }
@@ -220,27 +228,20 @@ public class ChallengesActivity extends Activity {
         LayoutInflater inflater = LayoutInflater.from(this);
         
         try {
-            // Get all quest documents
             List<DocumentSnapshot> questDocs = new ArrayList<>(snap.getDocuments());
             
-            // Sort for consistent display
             sortQuestList(questDocs, displayedWeeklyQuestIds);
             
-            // Make sure we only show unique quests (no dupes)
             List<DocumentSnapshot> uniqueQuests = filterUniqueQuests(questDocs);
             
-            // Sort by completion status
             List<DocumentSnapshot> activeQuests = new ArrayList<>();
             List<DocumentSnapshot> completedQuests = new ArrayList<>();
             sortByCompletion(uniqueQuests, activeQuests, completedQuests);
             
-            // Reset displayed tracking set
             displayedWeeklyQuestIds.clear();
             
-            // Display up to 2 quests
             int displayCount = 0;
             
-            // First, show active quests
             for (DocumentSnapshot doc : activeQuests) {
                 if (displayCount >= 2) break;
                 
@@ -254,7 +255,6 @@ public class ChallengesActivity extends Activity {
                 displayCount++;
             }
             
-            // Then fill with completed quests if needed
             for (DocumentSnapshot doc : completedQuests) {
                 if (displayCount >= 2) break;
                 
@@ -268,7 +268,6 @@ public class ChallengesActivity extends Activity {
                 displayCount++;
             }
             
-            // Request more if we don't have enough
             if (displayCount == 0) {
                 questManager.makeWeeklyQuests();
             }
@@ -284,24 +283,18 @@ public class ChallengesActivity extends Activity {
         LayoutInflater inflater = LayoutInflater.from(this);
         
         try {
-            // Get all quest documents
             List<DocumentSnapshot> questDocs = new ArrayList<>(snap.getDocuments());
             
-            // Sort for consistent display
             sortQuestList(questDocs, displayedDailyQuestIds);
             
-            // Sort by completion status
             List<DocumentSnapshot> activeQuests = new ArrayList<>();
             List<DocumentSnapshot> completedQuests = new ArrayList<>();
             sortByCompletion(questDocs, activeQuests, completedQuests);
             
-            // Reset displayed tracking set
             displayedDailyQuestIds.clear();
             
-            // Plan which quests to display - prioritizing active ones
             List<DocumentSnapshot> displayQuests = new ArrayList<>(activeQuests);
             
-            // Add completed quests if needed
             for (DocumentSnapshot doc : completedQuests) {
                 if (displayQuests.size() < 3) {
                     displayQuests.add(doc);
@@ -310,7 +303,6 @@ public class ChallengesActivity extends Activity {
                 }
             }
             
-            // Display quests
             for (DocumentSnapshot doc : displayQuests) {
                 displayedDailyQuestIds.add(doc.getId());
                 logQuestDisplay(doc);
@@ -320,7 +312,6 @@ public class ChallengesActivity extends Activity {
                 dailyContainer.addView(questView);
             }
             
-            // Request more if we don't have enough
             if (displayQuests.size() < 3) {
                 questManager.issueDailyQuests();
             }
@@ -330,10 +321,8 @@ public class ChallengesActivity extends Activity {
             Toast.makeText(this, "Couldn't display daily quests", Toast.LENGTH_SHORT).show();
         }
     }
-    
-    /**
-     * Sort quests to keep UI consistent between updates
-     */
+
+
     private void sortQuestList(List<DocumentSnapshot> quests, Set<String> displayedIds) {
         if (!displayedIds.isEmpty()) {
             quests.sort((a, b) -> {
@@ -345,10 +334,6 @@ public class ChallengesActivity extends Activity {
             });
         }
     }
-    
-    /**
-     * Remove duplicate quests with same title
-     */
     private List<DocumentSnapshot> filterUniqueQuests(List<DocumentSnapshot> quests) {
         List<DocumentSnapshot> uniqueQuests = new ArrayList<>();
         Set<String> seenTitles = new HashSet<>();
@@ -362,10 +347,6 @@ public class ChallengesActivity extends Activity {
         
         return uniqueQuests;
     }
-    
-    /**
-     * Sort quests into active and completed lists
-     */
     private void sortByCompletion(List<DocumentSnapshot> quests, 
                                   List<DocumentSnapshot> activeQuests,
                                   List<DocumentSnapshot> completedQuests) {
@@ -394,7 +375,6 @@ public class ChallengesActivity extends Activity {
         ProgressBar progressBar = questItemView.findViewById(R.id.questProgressBar);
         Button btnClaimReward = questItemView.findViewById(R.id.btnClaimReward);
         
-        // Get quest data with null safety
         String title = doc.getString("title");
         String description = doc.getString("description");
         Long currentNode = doc.getLong("currentNode");
@@ -402,25 +382,20 @@ public class ChallengesActivity extends Activity {
         Long reward = doc.getLong("rewardPoints");
         Boolean rewardClaimed = doc.getBoolean("rewardClaimed");
         
-        // Set basic info
         titleText.setText(title != null ? title : "Unknown Quest");
         descText.setText(description != null ? description : "");
         
-        // Safe defaults
         int curr = currentNode != null ? currentNode.intValue() : 0;
         int total = totalNodes != null ? totalNodes.intValue() : 1;
         int rewardPoints = reward != null ? reward.intValue() : 50;
         boolean isClaimed = rewardClaimed != null && rewardClaimed;
         
-        // Handle progress display
         boolean isComplete = curr >= total;
         progressBar.setMax(total);
         progressBar.setProgress(curr);
         
-        // Update UI based on quest status
         updateQuestStateUI(progressText, btnClaimReward, isComplete, isClaimed, curr, total);
         
-        // Hook up claim button if needed
         if (isComplete && !isClaimed) {
             final String questId = doc.getId();
             setupClaimButton(btnClaimReward, progressText, questId, title, rewardPoints);
@@ -431,7 +406,6 @@ public class ChallengesActivity extends Activity {
                                    boolean isComplete, boolean isClaimed,
                                    int current, int total) {
         if (isComplete) {
-            // Quest is complete
             if (isClaimed) {
                 progressText.setText("Completed ✓ (Claimed)");
                 claimBtn.setVisibility(View.VISIBLE);
@@ -445,7 +419,6 @@ public class ChallengesActivity extends Activity {
                 claimBtn.setText("Claim");
             }
         } else {
-            // Quest in progress
             progressText.setText(current + "/" + total);
             claimBtn.setVisibility(View.GONE);
         }
@@ -454,10 +427,8 @@ public class ChallengesActivity extends Activity {
     private void setupClaimButton(Button claimBtn, TextView progressText, 
                                  String questId, String questTitle, int rewardAmount) {
         claimBtn.setOnClickListener(v -> {
-            // Update UI immediately for responsiveness
             claimBtn.setEnabled(false);
             claimBtn.setText("Claiming...");
-            
             // Handle reward claim
             questManager.claimQuestReward(questId, new RewardClaimListener() {
                 @Override
@@ -468,21 +439,24 @@ public class ChallengesActivity extends Activity {
                             claimBtn.setText("Claimed");
                             claimBtn.setAlpha(0.6f);
                             progressText.setText("Completed ✓ (Claimed)");
-                            
                             // Show toast
-                            Toast.makeText(ChallengesActivity.this, 
+                            Toast.makeText(QuestActivity.this,
                                     "Quest '" + questTitle + "' completed! +" + rewardAmount + " coins", 
                                     Toast.LENGTH_SHORT).show();
+                            reloadQuestsFromFirestore();
                         } else {
-                            // Reset button on failure
                             claimBtn.setEnabled(true);
                             claimBtn.setText("Claim");
-                            Toast.makeText(ChallengesActivity.this, message, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(QuestActivity.this, message, Toast.LENGTH_SHORT).show();
                         }
                     });
                 }
             });
         });
+    }
+    
+    private void reloadQuestsFromFirestore() {
+        setupQuestListeners();
     }
     
     private void logQuestDisplay(DocumentSnapshot doc) {

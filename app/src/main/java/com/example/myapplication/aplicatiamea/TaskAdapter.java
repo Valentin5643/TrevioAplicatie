@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.myapplication.aplicatiamea.repository.QuestManager;
 import com.google.android.material.checkbox.MaterialCheckBox;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -41,23 +42,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-/**
- * Handles the task list display - the heart of our productivity system
- * Manages the delicate balance between showing progress and not overwhelming users
- */
 public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder> {
 
-    // So streak xp rewards are (5 * streak days) for each completion
     private static final long STREAK_XP_MULTIPLIER = 5L;
     private static final String TAG = "TaskAdapter";
-    
-    // Sorting constants
+
     public static final int SORT_PRIORITY = 0;
     public static final int SORT_NAME = 1;
     public static final int SORT_DUE_DATE = 2;
     public static final int SORT_CREATED = 3;
-    
-    // Filter constants
+
     public static final int FILTER_ALL = 0;
     public static final int FILTER_TODAY = 1;
     public static final int FILTER_INCOMPLETE = 2;
@@ -73,22 +67,18 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
     private final QuestManager questManager;
     private final StreakHelper streakHelper;
     private final TaskInteractionHandler interactionHandler;
-    
-    // Main task list and filtered view list
+
     private final List<Task> allTasks = new ArrayList<>();
     private final List<Task> filteredTasks = new ArrayList<>();
-    
-    // Batched operations cache
+
     private final Map<String, Boolean> taskCompletionUpdates = new ConcurrentHashMap<>();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Executor backgroundExecutor = Executors.newSingleThreadExecutor();
-    
-    // Filtering and sorting settings
+
     private int currentSortMethod = SORT_PRIORITY;
     private int currentFilter = FILTER_ALL;
     private boolean showCompleted = true;
 
-    // Track which tasks are being updated to prevent UI glitches
     private final java.util.Set<String> tasksBeingUpdated = new java.util.HashSet<>();
     
     public interface TaskInteractionHandler {
@@ -111,18 +101,15 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         this.questManager = questManager;
         this.streakHelper = streakHelper;
         this.interactionHandler = handler;
-        
-        // Initialize with tasks
+
         if (tasks != null) {
             this.allTasks.addAll(tasks);
             this.filteredTasks.addAll(tasks);
         }
-        
-        // Start task batch updater
+
         scheduleTaskBatchUpdates();
     }
 
-    // Simplified constructor for backward compatibility
     public TaskAdapter(List<Task> tasks, Context context, DocumentReference userRef) {
         this(tasks, context, userRef, null, null, null);
     }
@@ -143,24 +130,8 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
     public int getItemCount() {
         return filteredTasks.size();
     }
-    
-    /**
-     * Find task position by ID in the filtered list
-     */
-    public int findPositionById(String taskId) {
-        if (taskId == null) return -1;
-        
-        for (int i = 0; i < filteredTasks.size(); i++) {
-            if (taskId.equals(filteredTasks.get(i).getId())) {
-                return i;
-            }
-        }
-        return -1;
-    }
-    
-    /**
-     * Find task by ID in the main list
-     */
+
+
     @Nullable
     public Task findTaskById(String taskId) {
         if (taskId == null) return null;
@@ -173,14 +144,10 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         return null;
     }
     
-    /**
-     * Apply filtering and sorting to the task list
-     */
+
     public void applyFiltersAndSort() {
         backgroundExecutor.execute(() -> {
             List<Task> result = new ArrayList<>(allTasks);
-            
-            // Apply filters
             if (currentFilter != FILTER_ALL) {
                 List<Task> filtered = new ArrayList<>();
                 String today = getCurrentDateString();
@@ -190,19 +157,15 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                     
                     switch (currentFilter) {
                         case FILTER_TODAY:
-                            // Tasks scheduled for today
                             include = TaskScheduler.isTaskScheduledForToday(task, userTimeZone, today);
                             break;
                         case FILTER_INCOMPLETE:
-                            // Only incomplete tasks
                             include = !task.isCompleted();
                             break;
                         case FILTER_COMPLETE:
-                            // Only completed tasks
                             include = task.isCompleted();
                             break;
                         case FILTER_RECURRING:
-                            // Only recurring tasks
                             include = task.getRecurrenceDays() > 1 || 
                                 (task.getRecurrenceGroupId() != null && !task.getRecurrenceGroupId().isEmpty());
                             break;
@@ -215,7 +178,6 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                 
                 result = filtered;
             } else if (!showCompleted) {
-                // Filter out completed tasks unless specifically viewing completed
                 List<Task> filtered = new ArrayList<>();
                 for (Task task : result) {
                     if (!task.isCompleted()) {
@@ -224,55 +186,46 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                 }
                 result = filtered;
             }
-            
-            // Apply sort
+
             if (currentSortMethod == SORT_NAME) {
-                // Alphabetical
                 Collections.sort(result, (t1, t2) -> {
                     String name1 = t1.getName() != null ? t1.getName() : "";
                     String name2 = t2.getName() != null ? t2.getName() : "";
                     return name1.compareToIgnoreCase(name2);
                 });
             } else if (currentSortMethod == SORT_DUE_DATE) {
-                // By due date, nulls last
                 Collections.sort(result, (t1, t2) -> {
-                    // Get deadline timestamp as Date
                     Date date1 = t1.getDeadlineTimestamp() > 0 ? new Date(t1.getDeadlineTimestamp()) : null;
                     Date date2 = t2.getDeadlineTimestamp() > 0 ? new Date(t2.getDeadlineTimestamp()) : null;
-                    
+
                     if (date1 == null && date2 == null) return 0;
-                    if (date1 == null) return 1;  // null dates go last
+                    if (date1 == null) return 1;
                     if (date2 == null) return -1;
                     
                     return date1.compareTo(date2);
                 });
             } else if (currentSortMethod == SORT_CREATED) {
-                // By creation time, newest first
                 Collections.sort(result, (t1, t2) -> {
-                    // Use createdAt field for timestamp
                     Long timestamp1 = t1.getCreatedAt() != null ? t1.getCreatedAt().getTime() : null;
                     Long timestamp2 = t2.getCreatedAt() != null ? t2.getCreatedAt().getTime() : null;
                     
                     if (timestamp1 == null && timestamp2 == null) return 0;
                     if (timestamp1 == null) return 1;
                     if (timestamp2 == null) return -1;
-                    
-                    // Newest first
+
                     return timestamp2.compareTo(timestamp1);
                 });
             } else {
-                // Default priority sort
+
                 Collections.sort(result, (t1, t2) -> {
-                    // Incomplete tasks before completed tasks
                     if (t1.isCompleted() != t2.isCompleted()) {
                         return t1.isCompleted() ? 1 : -1;
                     }
-                    
-                    // Then by priority - convert priority string to int value
+
                     int p1 = getPriorityValue(t1.getPriority());
                     int p2 = getPriorityValue(t2.getPriority());
                     if (p1 != p2) {
-                        return p2 - p1; // Higher priority first
+                        return p2 - p1;
                     }
                     
                     // Then by name
@@ -281,11 +234,9 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                     return name1.compareToIgnoreCase(name2);
                 });
             }
-            
-            // Make a final copy of the result list for the lambda
+
             final List<Task> finalResult = new ArrayList<>(result);
-            
-            // Apply changes on UI thread using DiffUtil
+
             mainHandler.post(() -> {
                 DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(new TaskDiffCallback(filteredTasks, finalResult));
                 filteredTasks.clear();
@@ -295,9 +246,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         });
     }
     
-    /**
-     * Convert priority string to integer value
-     */
+
     private int getPriorityValue(String priority) {
         if (priority == null) return 0;
         
@@ -310,44 +259,14 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         }
         return 0;
     }
-    
-    /**
-     * Set filter type
-     */
+
     public void setFilter(int filterType) {
         if (currentFilter != filterType) {
             currentFilter = filterType;
             applyFiltersAndSort();
         }
     }
-    
-    /**
-     * Set sort method
-     */
-    public void setSortMethod(int sortMethod) {
-        if (currentSortMethod != sortMethod) {
-            currentSortMethod = sortMethod;
-            applyFiltersAndSort();
-        }
-    }
-    
-    /**
-     * Toggle showing completed tasks
-     */
-    public void setShowCompleted(boolean show) {
-        if (showCompleted != show) {
-            showCompleted = show;
-            applyFiltersAndSort();
-        }
-    }
-    
-    /**
-     * Check if a task was filtered out
-     */
-    public boolean isTaskFiltered(String taskId) {
-        Task task = findTaskById(taskId);
-        return task != null && !filteredTasks.contains(task);
-    }
+
 
     class TaskViewHolder extends RecyclerView.ViewHolder {
         MaterialCheckBox cbTaskCompleted;
@@ -365,8 +284,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             subtasksContainer = itemView.findViewById(R.id.subtasksContainer);
             ivRecurringIndicator = itemView.findViewById(R.id.ivRecurringIndicator);
             ivPriorityIndicator = itemView.findViewById(R.id.ivPriorityIndicator);
-            
-            // Fallback for older layouts missing the subtasks container
+
             if (subtasksContainer == null) {
                 subtasksContainer = new LinearLayout(itemView.getContext());
                 subtasksContainer.setOrientation(LinearLayout.VERTICAL);
@@ -374,11 +292,10 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 ));
-                
-                // Try to find the container, if not just add to root
+
                 ViewGroup parent = itemView.findViewById(R.id.taskContent);
                 if (parent == null) {
-                    parent = (ViewGroup) itemView; // fallback
+                    parent = (ViewGroup) itemView;
                 }
                 parent.addView(subtasksContainer);
             }
@@ -386,8 +303,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
 
         void bind(Task task) {
             tvTaskName.setText(task.getName());
-            
-            // Description is optional
+
             if (task.getDescription() != null && !task.getDescription().isEmpty()) {
                 tvTaskDescription.setText(task.getDescription());
                 tvTaskDescription.setVisibility(View.VISIBLE);
@@ -397,20 +313,17 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             
             updateTextStyle(task.isCompleted());
 
-            // Show little recurring icon for repeating tasks
             boolean isRecurring = task.getRecurrenceDays() > 1 || 
                               (task.getRecurrenceGroupId() != null && !task.getRecurrenceGroupId().isEmpty());
             if (ivRecurringIndicator != null) {
                 ivRecurringIndicator.setVisibility(isRecurring ? View.VISIBLE : View.GONE);
             }
-            
-            // Show priority indicator if needed
+
             if (ivPriorityIndicator != null) {
                 int priorityValue = getPriorityValue(task.getPriority());
                 if (priorityValue > 0) {
                     ivPriorityIndicator.setVisibility(View.VISIBLE);
-                    
-                    // Just use colors to indicate priority level since we don't have specific drawable resources
+
                     if (priorityValue == 3) {
                         ivPriorityIndicator.setColorFilter(
                             ContextCompat.getColor(context, R.color.colorAccent));
@@ -426,7 +339,6 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                 }
             }
 
-            // Set up checkbox - have to clear listener first so it doesn't get triggered during setup
             cbTaskCompleted.setOnCheckedChangeListener(null);
             cbTaskCompleted.setChecked(task.isCompleted());
 
@@ -444,30 +356,23 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                     return;
                 }
 
-                // Let the activity handle it if possible - it's smarter about batching
                 if (context instanceof TaskPlannerActivity) {
                     ((TaskPlannerActivity) context).updateTaskCompletion(currentTask.getId(), isChecked);
-                    // Be optimistic - UI will update if it fails
                     updateTextStyle(isChecked);
                     return;
                 }
 
-                // No activity helper - queue for batch update
                 updateTaskCompletionState(currentTask, isChecked);
-                
-                // Update UI immediately (optimistic)
+
                 currentTask.setCompleted(isChecked);
                 updateTextStyle(isChecked);
             });
-            
-            // Set up subtasks
+
             setupSubtasks(task);
 
-            // Handle completion state - use task parameter instead of undefined currentTask
             boolean isCompleted = task.isCompleted();
             cbTaskCompleted.setChecked(isCompleted);
-            
-            // Visual feedback for completed tasks
+
             if (isCompleted) {
                 tvTaskName.setPaintFlags(tvTaskName.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
                 tvTaskName.setAlpha(0.6f);
@@ -477,14 +382,12 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                 tvTaskName.setAlpha(1.0f);
                 tvTaskDescription.setAlpha(1.0f);
             }
-            
-            // Handle interaction states
+
             boolean isBeingUpdated = tasksBeingUpdated.contains(task.getId());
             boolean canModify = interactionHandler != null ? interactionHandler.canUserModifyTask(task) : true;
             
             cbTaskCompleted.setEnabled(canModify && !isBeingUpdated);
-            
-            // Set up click handlers
+
             if (interactionHandler != null) {
                 setupTaskInteractions(this, task, canModify, isBeingUpdated);
             }
@@ -508,13 +411,11 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                     
                     if (cbSubtask != null && tvSubtaskDesc != null) {
                         tvSubtaskDesc.setText(subtask.getDescription());
-                        
-                        // Set initial state
+
                         cbSubtask.setOnCheckedChangeListener(null);
                         cbSubtask.setChecked(subtask.isCompleted());
                         updateSubtaskStyle(tvSubtaskDesc, subtask.isCompleted());
-                        
-                        // Hook up the subtask checkbox
+
                         final int index = i;
                         cbSubtask.setOnCheckedChangeListener((buttonView, isChecked) -> {
                             Log.d(TAG, "Subtask toggle: task=" + task.getId() + ", idx=" + index + ", checked=" + isChecked);
@@ -554,8 +455,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                 tvTaskDescription.setTextColor(secondaryColor);
             }
         }
-        
-        // Apply strikethrough and dimming to completed subtasks
+
         private void updateSubtaskStyle(TextView tv, boolean completed) {
             if (tv == null) return;
             
@@ -570,32 +470,60 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             }
         }
     }
-    
-    /**
-     * Update subtask completion state and reflect changes in the UI
-     */
+
     private void updateSubtaskCompletion(String taskId, int index, boolean isCompleted, 
                                        Task.Subtask subtask, TextView tvSubtaskDesc) {
         if (taskId == null) return;
         
         DocumentReference taskRef = userRef.collection("tasks").document(taskId);
-        
-        // Optimistically update UI
+
+        boolean wasCompleted = subtask.isCompleted();
         subtask.setCompleted(isCompleted);
         if (tvSubtaskDesc != null) {
             updateSubtaskStyle(tvSubtaskDesc, isCompleted);
         }
-        
-        // Update in Firestore - uses array indexes, so need to be careful
+
         String fieldPath = "steps." + index + ".completed";
         taskRef.update(fieldPath, isCompleted)
             .addOnSuccessListener(aVoid -> {
-                Log.d(TAG, "Subtask " + index + " of task " + taskId + " updated: " + isCompleted);
-                
-                // Get the task and check if all subtasks are completed
+                Log.d("QuestDebug", "Firestore subtask update succeeded for subtask " + index + " of task " + taskId);
                 Task task = findTaskById(taskId);
                 if (task != null) {
                     checkAllSubtasksCompleted(task);
+                }
+                Log.d("QuestDebug", "questManager=" + questManager + ", userRef=" + userRef);
+                if (!wasCompleted && isCompleted) {
+                    Log.d("QuestDebug", "Subtask checkbox toggled: isCompleted=" + isCompleted);
+                    QuestManager qm = questManager;
+                    if (qm == null) {
+                        Log.d("QuestDebug", "questManager was null, creating inline.");
+                        FirebaseUser user = com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
+                        if (user != null) {
+                            DocumentReference fallbackUserRef = com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("users").document(user.getUid());
+                            qm = new com.example.myapplication.aplicatiamea.repository.QuestManager(user.getUid(), context);
+                            qm.recordSubtaskCompletion(1, fallbackUserRef);
+                        } else {
+                            Log.e("QuestDebug", "No FirebaseUser available for fallback QuestManager.");
+                        }
+                    } else {
+                        qm.recordSubtaskCompletion(1, userRef);
+                    }
+                } else if (wasCompleted && !isCompleted) {
+                    Log.d("QuestDebug", "Subtask checkbox toggled: isCompleted=" + isCompleted);
+                    QuestManager qm = questManager;
+                    if (qm == null) {
+                        Log.d("QuestDebug", "questManager was null, creating inline.");
+                        FirebaseUser user = com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();
+                        if (user != null) {
+                            DocumentReference fallbackUserRef = com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("users").document(user.getUid());
+                            qm = new com.example.myapplication.aplicatiamea.repository.QuestManager(user.getUid(), context);
+                            qm.recordSubtaskCompletion(-1, fallbackUserRef);
+                        } else {
+                            Log.e("QuestDebug", "No FirebaseUser available for fallback QuestManager.");
+                        }
+                    } else {
+                        qm.recordSubtaskCompletion(-1, userRef);
+                    }
                 }
             })
             .addOnFailureListener(e -> {
@@ -611,10 +539,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                                Toast.LENGTH_SHORT).show();
             });
     }
-    
-    /**
-     * Check if all subtasks are completed and auto-complete the main task
-     */
+
     private void checkAllSubtasksCompleted(Task task) {
         if (task.isCompleted() || task.getSteps() == null || task.getSteps().isEmpty()) {
             return;
@@ -629,38 +554,28 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         }
         
         if (allCompleted && !task.isCompleted()) {
-            // Auto-complete the task if all subtasks are completed
             Log.d(TAG, "All subtasks completed, auto-completing task: " + task.getId());
             updateTaskCompletionState(task, true);
             
-            // Update internal state
+
             task.setCompleted(true);
-            
-            // Notify adapter of change
+
             int position = filteredTasks.indexOf(task);
             if (position >= 0) {
                 notifyItemChanged(position);
             }
         }
     }
-    
-    /**
-     * Queue task completion state change for batch update
-     */
+
     private void updateTaskCompletionState(Task task, boolean isCompleted) {
         String taskId = task.getId();
         if (taskId == null) return;
-        
-        // Store the task completion state update
+
         taskCompletionUpdates.put(taskId, isCompleted);
-        
-        // Handle immediate updates
+
         handleTaskCompletionChange(task, isCompleted);
     }
-    
-    /**
-     * Schedule periodic batch updates to Firestore
-     */
+
     private void scheduleTaskBatchUpdates() {
         mainHandler.postDelayed(new Runnable() {
             @Override
@@ -671,9 +586,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         }, 2000);
     }
     
-    /**
-     * Execute all pending task completion updates as a batch
-     */
+
     private void flushTaskCompletionUpdates() {
         if (taskCompletionUpdates.isEmpty()) {
             return;
@@ -705,54 +618,39 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             })
             .addOnFailureListener(e -> {
                 Log.e(TAG, "Batch update failed: " + e.getMessage());
-                
-                // Put failed updates back in the queue
+
                 taskCompletionUpdates.putAll(updates);
-                
-                // Show error to user
+
                 Toast.makeText(context, "Failed to update tasks: " + e.getMessage(), 
                               Toast.LENGTH_SHORT).show();
             });
     }
 
-    /**
-     * Handle UI and logic changes when a task completion state changes
-     */
+
     private void handleTaskCompletionChange(Task task, boolean isCompleted) {
         if (task == null) return;
-        
-        // Sync the task completion state
+
         task.setCompleted(isCompleted);
-        
-        // For completed tasks, update streak and XP rewards
+
         if (isCompleted) {
-            // Record completion time for streaks
             long now = System.currentTimeMillis();
             updateCompletedDatesAndStreak(now, true);
         }
-        
-        // Update filtered list if needed based on current filter
+
         if (currentFilter == FILTER_COMPLETE && !isCompleted) {
-            // Task was uncompleted while showing only completed tasks
             removeFromFilteredListIfNeeded(task);
         } else if (currentFilter == FILTER_INCOMPLETE && isCompleted) {
-            // Task was completed while showing only incomplete tasks
             removeFromFilteredListIfNeeded(task);
         } else if (!showCompleted && isCompleted) {
-            // Task was completed while hiding completed tasks
             removeFromFilteredListIfNeeded(task);
         } else {
-            // Just notify the item changed
             int position = filteredTasks.indexOf(task);
             if (position >= 0) {
                 notifyItemChanged(position);
             }
         }
     }
-    
-    /**
-     * Remove a task from the filtered list if it no longer matches filters
-     */
+
     private void removeFromFilteredListIfNeeded(Task task) {
         int position = filteredTasks.indexOf(task);
         if (position >= 0) {
@@ -761,17 +659,6 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         }
     }
 
-    /**
-     * Callback interface for streak calculation
-     */
-    public interface StreakCallback {
-        void onSuccess(int streak);
-        void onFailure();
-    }
-
-    /**
-     * Update user's completed dates and calculate streaks
-     */
     private void updateCompletedDatesAndStreak(long timestamp, boolean completed) {
         if (!completed) return;
         
@@ -782,32 +669,25 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                 Log.e(TAG, "User document not found");
                 return;
             }
-            
-            // Update the completed dates
+
             Map<String, Object> updates = new HashMap<>();
-            
-            // Add today to completed dates array
+
             updates.put("completedDates", FieldValue.arrayUnion(dateString));
-            
-            // Apply updates
+
             userRef.update(updates)
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Added completed date: " + dateString);
-                    
-                    // Calculate streak
+
                     streakHelper.calculateStreak(new StreakHelper.StreakCallback() {
                         @Override
                         public void onSuccess(int streak) {
-                            // Award streak XP if streak is valid
                             if (streak > 0) {
                                 long streakXp = streak * STREAK_XP_MULTIPLIER;
                                 Log.d(TAG, "Current streak: " + streak + " days, awarding " + streakXp + " XP");
-                                
-                                // Use quest manager for consistency
+
                                 if (questManager != null) {
                                     questManager.incrementXp(streakXp);
-                                    
-                                    // Show streak notification for significant streaks
+
                                     if (streak % 5 == 0 && streak > 0) {
                                         mainHandler.post(() -> {
                                             Toast.makeText(context, streak + " day streak! +" + streakXp + " XP", 
@@ -830,120 +710,22 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         });
     }
     
-    /**
-     * Set a new list of tasks, completely replacing the current list
-     */
+
     public void setTasks(List<Task> newTasks) {
         backgroundExecutor.execute(() -> {
             allTasks.clear();
             if (newTasks != null) {
                 allTasks.addAll(newTasks);
             }
-            
-            // Apply current filtering and sorting
+
             applyFiltersAndSort();
         });
     }
-    
-    /**
-     * Add a task to the adapter
-     */
-    public void addTask(Task task) {
-        if (task == null || task.getId() == null) return;
-        
-        // Add to the main list
-        allTasks.add(task);
-        
-        // Check if it passes current filters
-        boolean shouldShow = true;
-        
-        if (currentFilter == FILTER_COMPLETE && !task.isCompleted()) {
-            shouldShow = false;
-        } else if (currentFilter == FILTER_INCOMPLETE && task.isCompleted()) {
-            shouldShow = false;
-        } else if (currentFilter == FILTER_RECURRING && 
-                  (task.getRecurrenceDays() <= 1 && 
-                  (task.getRecurrenceGroupId() == null || task.getRecurrenceGroupId().isEmpty()))) {
-            shouldShow = false;
-        } else if (currentFilter == FILTER_TODAY && !TaskScheduler.isTaskScheduledForToday(task, userTimeZone, getCurrentDateString())) {
-            shouldShow = false;
-        } else if (!showCompleted && task.isCompleted()) {
-            shouldShow = false;
-        }
-        
-        if (shouldShow) {
-            // Add to filtered list and resort
-            applyFiltersAndSort();
-        }
-    }
-    
-    /**
-     * Update an existing task in the adapter
-     */
-    public void updateTask(Task updatedTask) {
-        if (updatedTask == null || updatedTask.getId() == null) return;
-        
-        String taskId = updatedTask.getId();
-        
-        // Find and update in main list
-        for (int i = 0; i < allTasks.size(); i++) {
-            Task task = allTasks.get(i);
-            if (taskId.equals(task.getId())) {
-                allTasks.set(i, updatedTask);
-                break;
-            }
-        }
-        
-        // Find in filtered list
-        int filteredPos = -1;
-        for (int i = 0; i < filteredTasks.size(); i++) {
-            if (taskId.equals(filteredTasks.get(i).getId())) {
-                filteredPos = i;
-                break;
-            }
-        }
-        
-        // Apply filters and sort
-        applyFiltersAndSort();
-    }
-    
-    /**
-     * Remove a task from the adapter
-     */
-    public void removeTask(String taskId) {
-        if (taskId == null) return;
-        
-        // Remove from main list
-        Task taskToRemove = null;
-        for (Task task : allTasks) {
-            if (taskId.equals(task.getId())) {
-                taskToRemove = task;
-                break;
-            }
-        }
-        
-        if (taskToRemove != null) {
-            allTasks.remove(taskToRemove);
-            
-            // Remove from filtered list if present
-            int filteredPos = filteredTasks.indexOf(taskToRemove);
-            if (filteredPos >= 0) {
-                filteredTasks.remove(filteredPos);
-                notifyItemRemoved(filteredPos);
-            }
-        }
-    }
-    
-    /**
-     * Get current date string for today in user's timezone
-     */
+
     private String getCurrentDateString() {
         return dateFormat.format(new Date());
     }
-    
-    /**
-     * DiffUtil callback for efficient RecyclerView updates
-     */
+
     private static class TaskDiffCallback extends DiffUtil.Callback {
         private final List<Task> oldList;
         private final List<Task> newList;
@@ -981,24 +763,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
                    oldTask.getDescription() != null && oldTask.getDescription().equals(newTask.getDescription()));
         }
     }
-    
-    /**
-     * Clean up resources when adapter is no longer needed
-     */
-    public void cleanup() {
-        // Flush any pending updates
-        flushTaskCompletionUpdates();
-        
-        // Remove callback
-        mainHandler.removeCallbacksAndMessages(null);
-    }
 
-    /**
-     * Update the subtask text style based on completion status
-     *
-     * @param textView   The TextView to update
-     * @param completed  Whether the subtask is completed
-     */
     public void updateSubtaskStyle(TextView textView, boolean completed) {
         if (completed) {
             textView.setPaintFlags(textView.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
@@ -1009,65 +774,30 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         }
     }
 
-    private int calculateCompletedSteps(Task task) {
-        // This would ideally come from the task model
-        // For now, just estimate based on completion status
-        if (task.isCompleted()) {
-            return task.getActionItems().size();
-        }
-        
-        // TODO: Track individual step completion
-        return 0;
-    }
-
-    private String formatDueDate(java.util.Date dueDate) {
-        // Simple date formatting - could be enhanced with relative dates
-        java.text.SimpleDateFormat formatter = new java.text.SimpleDateFormat("MMM dd", java.util.Locale.getDefault());
-        return formatter.format(dueDate);
-    }
-
-    private boolean isTaskOverdue(Task task) {
-        if (task.getDueDate() == null) return false;
-        return task.getDueDate().before(new java.util.Date()) && !task.isCompleted();
-    }
-
-    private boolean isTaskDueSoon(Task task) {
-        if (task.getDueDate() == null) return false;
-        
-        long oneDayInMillis = 24 * 60 * 60 * 1000;
-        long timeUntilDue = task.getDueDate().getTime() - System.currentTimeMillis();
-        
-        return timeUntilDue > 0 && timeUntilDue <= oneDayInMillis;
-    }
-
     private void setupTaskInteractions(TaskViewHolder holder, Task task, boolean canModify, boolean isUpdating) {
         if (isUpdating) {
-            // Disable all interactions during updates
             holder.itemView.setOnClickListener(null);
             holder.itemView.setOnLongClickListener(null);
             holder.cbTaskCompleted.setOnCheckedChangeListener(null);
             return;
         }
         
-        // Task completion toggle
+
         holder.cbTaskCompleted.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (canModify && interactionHandler != null) {
                 markTaskAsUpdating(task.getId());
                 interactionHandler.onTaskToggled(task, isChecked);
             } else {
-                // Reset checkbox if user can't modify
                 buttonView.setChecked(!isChecked);
             }
         });
-        
-        // Task details view
+
         holder.itemView.setOnClickListener(v -> {
             if (canModify && interactionHandler != null) {
                 interactionHandler.onTaskClicked(task);
             }
         });
-        
-        // Task options menu
+
         holder.itemView.setOnLongClickListener(v -> {
             if (canModify && interactionHandler != null) {
                 interactionHandler.onTaskLongPressed(task);
@@ -1077,19 +807,11 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         });
     }
 
-    // Mark task as being updated to prevent UI conflicts
     public void markTaskAsUpdating(String taskId) {
         tasksBeingUpdated.add(taskId);
         refreshTaskById(taskId);
     }
-    
-    // Remove updating state when operation completes
-    public void markTaskUpdateComplete(String taskId) {
-        tasksBeingUpdated.remove(taskId);
-        refreshTaskById(taskId);
-    }
-    
-    // Refresh specific task without full list refresh
+
     private void refreshTaskById(String taskId) {
         for (int i = 0; i < filteredTasks.size(); i++) {
             if (filteredTasks.get(i).getId().equals(taskId)) {
@@ -1098,8 +820,7 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             }
         }
     }
-    
-    // Clean up any pending operations
+
     public void clearPendingUpdates() {
         tasksBeingUpdated.clear();
         notifyDataSetChanged();

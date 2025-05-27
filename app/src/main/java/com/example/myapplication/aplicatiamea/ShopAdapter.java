@@ -34,32 +34,29 @@ import java.util.Map;
 import java.util.Set;
 
 public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-    // view types - don't change these or everything breaks!
+    // view types - don't change these or it breaks!
     private static final int TYPE_HEADER = 0;
     private static final int TYPE_SHOP_ITEM = 1;
     private static final int TYPE_INVENTORY_ITEM = 2;
-    private static final int TYPE_EMPTY_SHOP = 3; // For "Shop is empty!" message
-    private static final String EMPTY_SHOP_MARKER = "SHOP_EMPTY_MARKER"; // Used in items list
+    private static final int TYPE_EMPTY_SHOP = 3;
+    private static final String EMPTY_SHOP_MARKER = "SHOP_EMPTY_MARKER";
     private static final String TAG = "ShopAdapter";
     
     // fields
     private final Context ctx;
-    private final List<Object> items; // can contain ShopItem or String (headers) or marker
+    private final List<Object> items;
     private final DocumentReference userRef;
-    private Map<String, Long> inventory = new HashMap<>(); // Item quantities owned
-    private Map<String, String> equipped = new HashMap<>(); // Slot -> itemId mapping
+    private Map<String, Long> inventory = new HashMap<>();
+    private Map<String, String> equipped = new HashMap<>();
     
-    // misc tracking
-    private final Map<String, Boolean> isShopItem = new HashMap<>(); // true if item belongs in shop section
-    
-    // lol need this for my hacky potion glow effect
-    private int frameCount = 0;
+
+    private final Map<String, Boolean> isShopItem = new HashMap<>();
+
 
     private final OnItemPurchaseListener purchaseHandler;
     private int userCoins;
     private int userLevel;
-    
-    // Track which items are currently being processed to prevent double-purchases
+
     private final Set<String> processingPurchases = new java.util.HashSet<>();
 
     public interface OnItemPurchaseListener {
@@ -73,25 +70,19 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         void onFailure(String reason);
     }
 
-    /**
-     * Creates shop adapter
-     */
     public ShopAdapter(Context context, List<Object> items, DocumentReference userRef, OnItemPurchaseListener listener) {
         this.ctx = context;
         this.items = items;
         this.userRef = userRef;
         this.purchaseHandler = listener;
         
-        // sometimes stuff is null so double check
+        // double check null
         if (this.items == null) {
             Log.e(TAG, "NULL ITEMS LIST in constructor!!!");
             throw new IllegalArgumentException("items cannot be null");
         }
     }
 
-    /**
-     * Creates shop adapter without purchase listener (for backward compatibility)
-     */
     public ShopAdapter(Context context, List<Object> items, DocumentReference userRef) {
         this(context, items, userRef, null);
     }
@@ -101,7 +92,6 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         Object item = items.get(position);
         
         if (item instanceof String) {
-            // might be header or might be EMPTY_SHOP_MARKER
             if (EMPTY_SHOP_MARKER.equals(item)) {
                  return TYPE_EMPTY_SHOP;
             }
@@ -114,17 +104,16 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             return inShop ? TYPE_SHOP_ITEM : TYPE_INVENTORY_ITEM;
         }
         
-        // uh oh
+
         Log.w(TAG, "Unknown item type at pos " + position + ": " + item);
-        return TYPE_SHOP_ITEM; // fallback but shouldn't happen
+        return TYPE_SHOP_ITEM;
     }
 
     @NonNull
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         LayoutInflater inflater = LayoutInflater.from(ctx);
-        
-        // create viewholder based on type
+
         switch (viewType) {
             case TYPE_HEADER:
                 return new HeaderViewHolder(
@@ -151,26 +140,20 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         
         switch (viewType) {
             case TYPE_HEADER:
-                // section header
+
                 HeaderViewHolder headerHolder = (HeaderViewHolder) holder;
                 String headerText = (String) items.get(position);
                 headerHolder.tvHeader.setText(headerText);
                 break;
                 
             case TYPE_EMPTY_SHOP:
-                // empty shop msg
-                // nothing to do - fixed text in layout
                 break;
                 
             case TYPE_SHOP_ITEM:
             case TYPE_INVENTORY_ITEM:
-                // shop or inventory item - handle the same but with different UI states
                 ItemViewHolder itemHolder = (ItemViewHolder) holder;
                 ShopItem item = (ShopItem) items.get(position);
                 boolean inShop = isShopItem.getOrDefault(item.getId(), false);
-                
-                // let's debug this sometimes
-                // Log.d(TAG, "Binding item: " + item.getId() + ", inShop=" + inShop);
                       
                 bindItemViewHolder(itemHolder, item, inShop);
                 break;
@@ -178,7 +161,6 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     }
 
     private void bindItemViewHolder(ItemViewHolder holder, ShopItem item, boolean inShop) {
-        // Setup basic info
         holder.tvItemName.setText(item.getName());
         holder.tvItemName.setTextColor(ctx.getResources().getColor(R.color.text_primary));
         holder.tvItemName.setTypeface(null, Typeface.NORMAL);
@@ -186,15 +168,13 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         holder.itemView.setOnClickListener(v -> tryConsumePotion(item, holder));
         holder.ivIcon.clearAnimation();
 
-        // Price and qty owned
         long price = item.getCost();
         long owned = inventory.getOrDefault(item.getId(), 0L);
         String costText = price + " coins" + (owned > 0 && !inShop ? " (x" + owned + ")" : "");
         
         holder.tvItemCost.setText(costText);
         holder.tvItemName.setVisibility(View.VISIBLE);
-        
-        // figure out what type it is
+
         boolean isPotion = item.getId().startsWith("potion_");
         boolean isEquipment = "armor".equals(item.getSlot()) || 
                             "weapon".equals(item.getSlot()) ||
@@ -202,27 +182,21 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                             "greaves".equals(item.getSlot()) ||
                             "boots".equals(item.getSlot());
 
-        // UI for shop vs inventory items
         if (inShop) {
-            // Show price and buy button for shop items
             holder.tvItemCost.setVisibility(View.VISIBLE);
             holder.btnBuy.setVisibility(View.VISIBLE);
         } else {
-            // Hide price and buy button for inventory items
             holder.tvItemCost.setVisibility(View.GONE);
             holder.btnBuy.setVisibility(View.GONE);
         }
 
-        // Extra potion styling
         if (isPotion) {
-            // Make potions look special
             String name = item.getName();
             holder.tvItemName.setText("✧ " + name + " ✧");
             holder.tvItemName.setTextColor(Color.rgb(128, 0, 128)); // Purple!
             holder.tvItemName.setTypeface(null, Typeface.BOLD_ITALIC);
             holder.tvItemName.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
 
-            // Animate rare potions in shop
             if (inShop && "Rare Alchemical Concoction".equals(item.getDescription())) {
                 Animation pulse = new AlphaAnimation(0.7f, 1.0f);
                 pulse.setDuration(1000);
@@ -231,7 +205,6 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 holder.ivIcon.startAnimation(pulse);
             }
 
-            // Set potion image based on ID
             String drawableName;
             switch (item.getId()) {
                 case "potion_2": drawableName = "potion002"; break;
@@ -245,8 +218,7 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 case "potion_10": drawableName = "potion000"; break;
                 default: drawableName = "potion001"; break;
             }
-            
-            // Try to load potion image
+
             @SuppressLint("DiscouragedApi") 
             int resId = ctx.getResources().getIdentifier(drawableName, "drawable", ctx.getPackageName());
             if (resId != 0) {
@@ -256,19 +228,15 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 holder.ivIcon.setImageResource(android.R.drawable.ic_dialog_info);
             }
 
-            // Make inventory potions extra clickable
             if (!inShop && owned > 0) {
                 holder.itemView.setOnClickListener(v -> tryConsumePotion(item, holder));
                 holder.itemView.setBackgroundResource(R.drawable.item_background_selectable);
             } 
-        } else { 
-            // Regular item image
+        } else {
             if (item.getIconUrl() != null && !item.getIconUrl().isEmpty()) {
                 if (item.getIconUrl().startsWith("http")) {
-                    // Load from URL
                     Glide.with(ctx).load(item.getIconUrl()).into(holder.ivIcon);
                 } else {
-                    // Load from drawable
                     @SuppressLint("DiscouragedApi") 
                     int resId = ctx.getResources().getIdentifier(
                         item.getIconUrl(), "drawable", ctx.getPackageName()
@@ -276,7 +244,6 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     holder.ivIcon.setImageResource(resId != 0 ? resId : R.drawable.ic_baseline_save_24);
                 }
             } else {
-                // Try item ID as drawable
                 @SuppressLint("DiscouragedApi") 
                 int resId = ctx.getResources().getIdentifier(
                     item.getId(), "drawable", ctx.getPackageName()
@@ -285,17 +252,13 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             }
         }
 
-        // Click listeners
         if (inShop) {
-            // Setup Buy Button Listener
             holder.btnBuy.setOnClickListener(v -> {
-                // Use purchaseHandler if available, otherwise handle purchase directly
                 if (purchaseHandler != null) {
-                    // Delegate to purchase handler
                     purchaseHandler.onPurchaseAttempt(item, new PurchaseCallback() {
                         @Override
                         public void onSuccess() {
-                            // Purchase handler will update UI
+
                         }
                         
                         @Override
@@ -304,15 +267,11 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                         }
                     });
                 } else {
-                    // Handle purchase directly (legacy behavior)
                     handleDirectPurchase(item, holder);
                 }
             });
         } else if (!inShop && isEquipment) {
-            // Setup Equip Click Listener for inventory items
             holder.itemView.setOnClickListener(v -> {
-                // Equip logic...
-                // (Existing equip logic remains the same)
                 FirebaseFirestore.getInstance();
                 String fieldPath = "equipped." + item.getSlot();
                  userRef.update(fieldPath, item.getId())
@@ -322,8 +281,7 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                          Toast.makeText(ctx, "Equip failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                      });
             });
-        } 
-        // Note: Potion consumption click listener is handled within the isPotion block above
+        }
     }
 
     @Override
@@ -331,23 +289,20 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return items.size();
     }
 
-    /** Update inventory counts and refresh UI */
     public void setInventory(Map<String, Long> inventory) {
         this.inventory.clear();
         this.inventory.putAll(inventory);
         notifyDataSetChanged();
     }
 
-    /** Update the list of items and refresh UI */
     public void setItems(List<ShopItem> shopItems, List<ShopItem> inventoryItems) {
         items.clear();
         isShopItem.clear();
-        
-        // Add "Shop" header and items OR empty shop message
-        items.add("Shop Items"); // Always add the header first
+
+        items.add("Shop Items");
         if (shopItems == null || shopItems.isEmpty()) {
              Log.d(TAG, "Shop items list is empty, adding empty marker.");
-             items.add(EMPTY_SHOP_MARKER); // Add the empty marker instead of items
+             items.add(EMPTY_SHOP_MARKER);
         } else {
             for (ShopItem item : shopItems) {
                 isShopItem.put(item.getId(), true);
@@ -355,8 +310,7 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 Log.d(TAG, "Added shop item: " + item.getId() + ", isShop=" + isShopItem.get(item.getId()));
             }
         }
-        
-        // Process inventory items separately and mark them as non-shop
+
         if (!inventoryItems.isEmpty()) {
             List<ShopItem> equipmentItems = new ArrayList<>();
             List<ShopItem> potionItems = new ArrayList<>();
@@ -396,7 +350,6 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         Log.d(TAG, "DEBUG: Shop refreshed. shopItems=" + (shopItems == null ? 0 : shopItems.size()) + ", userRef=" + (userRef != null ? userRef.getId() : "null"));
     }
 
-    /** Update equipped gear and support IDs and refresh UI */
     public void setEquipped(String armorId, String weaponId, String helmetId, String greavesId, String bootsId, String supportId) {
         equipped.clear();
         if (armorId != null) equipped.put("armor", armorId);
@@ -405,11 +358,9 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (greavesId != null) equipped.put("greaves", greavesId);
         if (bootsId != null) equipped.put("boots", bootsId);
         if (supportId != null) equipped.put("support", supportId);
-        // Maybe add visual indication on the item itself if equipped?
         notifyDataSetChanged();
     }
 
-    /** Remove an item from this adapter's list */
     public void removeItem(ShopItem item) {
         int index = items.indexOf(item);
         if (index != -1) {
@@ -417,31 +368,23 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             notifyItemRemoved(index);
         }
     }
-
-    /**
-     * Handles the logic to consume a potion when clicked in the support slot.
-     */
     private void tryConsumePotion(ShopItem item, ItemViewHolder holder) {
         Log.d(TAG, "Attempting to consume potion: " + item.getName());
         final String itemId = item.getId();
 
-        // Disable the item view to prevent double-clicks
         holder.itemView.setEnabled(false);
 
-        // 1. Preliminary check using local inventory map
         long currentOwned = inventory.getOrDefault(itemId, 0L);
         if (currentOwned <= 0) {
             Toast.makeText(ctx, "No " + item.getName() + " left!", Toast.LENGTH_SHORT).show();
-            holder.itemView.setEnabled(true); // Re-enable if failed early
+            holder.itemView.setEnabled(true);
             return;
         }
 
-        // 2. Run Firestore transaction to consume
         FirebaseFirestore db = FirebaseFirestore.getInstance();
         db.runTransaction(transaction -> {
             DocumentSnapshot userSnap = transaction.get(userRef);
 
-            // --- Get current inventory ---
             Map<String, Object> inventory = new HashMap<>();
             if (userSnap.contains("inventory") && userSnap.get("inventory") instanceof Map) {
                 try {
@@ -457,13 +400,11 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
             }
 
-            // Verify count in DB before decrementing
             if (countInDb <= 0) {
                 throw new FirebaseFirestoreException("Potion count in DB is already zero.",
                         FirebaseFirestoreException.Code.ABORTED);
             }
 
-            // --- Get current effects map ---
             Map<String, Object> effectsMap = new HashMap<>();
             if (userSnap.contains("activeEffects") && userSnap.get("activeEffects") instanceof Map) {
                 try {
@@ -471,20 +412,18 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 } catch (ClassCastException e) { Log.e(TAG, "activeEffects field is not a Map"); }
             }
 
-            // --- Apply the effect logic to the map ---
             activatePotionEffect(item, effectsMap);
 
-            // --- Update Firestore atomically ---
-            // Decrement inventory
+
             transaction.update(userRef, "inventory." + itemId, FieldValue.increment(-1));
-            // Always unequip support slot after consumption
+
             transaction.update(userRef, "equipped.support", FieldValue.delete());
-            // Save the modified effects map
+
             transaction.update(userRef, "activeEffects", effectsMap);
 
             Log.d(TAG, "Potion consumption transaction: Updated inventory, equipped slot, and activeEffects.");
 
-            return countInDb - 1; // Return the new inventory count
+            return countInDb - 1;
         }).addOnSuccessListener(newCountLong -> {
             Log.d(TAG, "Potion consumption transaction successful. New count: " + newCountLong);
             Toast.makeText(ctx, "You consumed the mysterious " + item.getName() + "...", Toast.LENGTH_LONG).show();
@@ -492,19 +431,15 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             equipped.remove("support");
             removeItem(item);
             notifyDataSetChanged();
-            holder.itemView.setEnabled(true); // Re-enable after success
+            holder.itemView.setEnabled(true);
             Log.d(TAG, "DEBUG: Potion consumed. item=" + item.getId() + ", newCount=" + newCountLong + ", userRef=" + (userRef != null ? userRef.getId() : "null"));
         }).addOnFailureListener(e -> {
             Log.e(TAG, "Potion consumption transaction failed", e);
             Toast.makeText(ctx, "Failed to use potion: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            holder.itemView.setEnabled(true); // Re-enable after failure
+            holder.itemView.setEnabled(true);
         });
     }
 
-    /**
-     * Activates the specific effect of a potion in EffectManager.
-     * Called after a successful consumption transaction.
-     */
     private void activatePotionEffect(ShopItem item, Map<String, Object> effectsMap) {
         String potionName = item.getName();
         long currentTime = System.currentTimeMillis();
@@ -564,7 +499,6 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 Log.w("EffectManager", "Unknown potion name in activatePotionEffect: " + potionName);
                 break;
         }
-        // NOTE: Saving the modified effectsMap happens in the calling method (tryConsumePotion)
     }
 
     static class ItemViewHolder extends RecyclerView.ViewHolder {
@@ -591,15 +525,12 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
     }
 
-    // New ViewHolder for the empty shop message
     static class EmptyShopViewHolder extends RecyclerView.ViewHolder {
         EmptyShopViewHolder(@NonNull View itemView) {
             super(itemView);
-            // No specific views to bind here as the layout holds the text
         }
     }
 
-    // Update user's purchasing power - called when coins/level change
     public void updateUserStatus(int coins, int level) {
         int oldCoins = this.userCoins;
         this.userLevel = level;
@@ -632,8 +563,7 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             holder.btnBuy.setEnabled(false);
             return;
         }
-        
-        // User can purchase
+
         holder.btnBuy.setText("Buy for " + item.getCost());
         holder.btnBuy.setEnabled(true);
         holder.btnBuy.setOnClickListener(v -> handlePurchaseClick(item));
@@ -671,25 +601,6 @@ public class ShopAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         });
     }
 
-    // Helper method to refresh specific item without full dataset refresh
-    public void refreshItem(String itemId) {
-        for (int i = 0; i < items.size(); i++) {
-            if (items.get(i).equals(itemId)) {
-                notifyItemChanged(i);
-                break;
-            }
-        }
-    }
-    
-    // Clear any pending purchase operations (useful for cleanup)
-    public void clearPendingPurchases() {
-        processingPurchases.clear();
-        notifyDataSetChanged();
-    }
-
-    /**
-     * Handle purchase directly when no purchase handler is available (legacy behavior)
-     */
     private void handleDirectPurchase(ShopItem item, ItemViewHolder holder) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
         db.runTransaction(tx -> {

@@ -2,326 +2,251 @@ package com.example.myapplication.aplicatiamea.repository;
 
 import android.content.Context;
 import android.util.Log;
+import android.widget.Toast;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.example.myapplication.aplicatiamea.Task;
-import com.google.firebase.firestore.*;
 
-import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Calendar;
 
-/**
- * Main brain for quest system.
- * Controls all the various quest systems in the app.
- * 
- * TODO: Consider splitting into smaller managers for v2.0
- * HISTORY: Rewritten after v0.4.2 bugs with Firebase transaction failures
- */
+
 public class QuestManager implements QuestTemplateProvider {
-    private static final String TAG = "QuestMgr"; // shorter tag to avoid log truncation
-    
-    // frequency types - used in several places
-    public static final String FREQ_DAILY = "DAILY";
-    public static final String FREQ_WEEKLY = "WEEKLY";
-    // We had MONTHLY type earlier but removed in v0.3.1
+    private static final String TAG = "QuestManager";
+    private static final int MAX_DAILY_QUESTS = 3;
+    private static final int MAX_WEEKLY_QUESTS = 2;
     
     private final String userId;
     private final Context context;
-    private final FirebaseFirestore db;
-    private final CollectionReference questsRef;
+    private QuestScheduler scheduler;
+    private QuestProgressTracker progressTracker;
+    private TimeBoundQuestHandler timeBoundHandler;
+    private QuestRewardManager rewardManager;
+    private QuestCleaner cleaner;
     
-    // All the specialized quest handlers - this got complex over time
-    private final QuestScheduler scheduler;
-    private final QuestProgressTracker progressTracker;
-    private final QuestRewardManager rewardManager;
-    private final QuestCleaner cleaner;
-    private final TimeBoundQuestHandler timeBoundQuestHandler;
-    private final RecurringTaskHandler recurringTaskHandler;
+    private static final long QUEST_ACTION_COOLDOWN_MS = 180000; // 3 minutes
     
-    // cached templates to avoid re-creating them constantly
-    private List<QuestTemplate> cachedTemplates = null;
+    private final List<QuestTemplate> templates = Arrays.asList(
+        new QuestTemplate("morning_momentum", "Morning Momentum Quest", "Complete 3 HIGH priority tasks before 9 AM", "DAILY", 3, 50, "time_bound"),
+        new QuestTemplate("inbox_zero", "Inbox Zero Quest", "Clear your Inbox project items by end of day", "DAILY", 1, 75, "standard"),
+        new QuestTemplate("priority_cleanup", "Priority Cleanup Quest", "Finish 5 MEDIUM or HIGH priority tasks", "DAILY", 5, 80, "standard"),
+        new QuestTemplate("speedy_task", "Speedy Task Quest", "Complete any 3 tasks within 2 hours", "DAILY", 3, 80, "time_bound"),
+        new QuestTemplate("high_priority_sprint", "High-Priority Sprint", "Complete 2 HIGH priority tasks within 1 hour", "DAILY", 2, 60, "time_bound"),
+        new QuestTemplate("habit_streak", "Habit Streak Quest", "Mark a chosen habit as done 7 days in a row", "WEEKLY", 7, 200, "streak"),
+        new QuestTemplate("healthy_habits", "Healthy Habits Quest", "Complete 5 micro-habits each day for a week", "WEEKLY", 5, 100, "standard"),
+        new QuestTemplate("spring_cleaning", "Spring Cleaning Quest", "Complete 10 small cleanup tasks over 3 days", "DAILY", 10, 150, "standard"),
+        new QuestTemplate("weekly_review", "Weekly Review Quest", "Archive completed tasks and plan next week", "WEEKLY", 1, 120, "standard"),
+        new QuestTemplate("focus_sessions", "Focus Sessions Quest", "Complete two 2-hour focus sessions this week", "WEEKLY", 2, 150, "standard"),
+        new QuestTemplate("subtask_surge", "Subtask Surge Quest", "Complete 10 subtasks in a day", "DAILY", 10, 100, "standard"),
+        new QuestTemplate("plan_next_week", "Plan Next Week Quest", "Plan tasks for next week", "WEEKLY", 1, 100, "standard"),
+        new QuestTemplate("consistency_champion", "Consistency Champion Quest", "Complete the same recurring task for 3 consecutive days", "DAILY", 3, 150, "streak")
+    );
     
-    // Quest templates - kept in memory to avoid DB reads
-    // Originally was in the database but moved here for performance
-    private List<QuestTemplate> getDefaultTemplates() {
-        return Arrays.asList(
-            // Morning quests
-            new QuestTemplate("Morning Momentum Quest", "Complete 3 HIGH priority tasks before 9 AM", 3, 50, TimeUnit.HOURS.toMillis(9)),
-            
-            // Daily quests
-            new QuestTemplate("Inbox Zero Quest", "Clear your Inbox project items by end of day", 1, 75, TimeUnit.DAYS.toMillis(1)),
-            new QuestTemplate("Priority Cleanup Quest", "Finish 5 MEDIUM or HIGH priority tasks", 5, 80, TimeUnit.DAYS.toMillis(1)),
-            new QuestTemplate("Speedy Task Quest", "Complete any 3 tasks within 2 hours", 3, 80, TimeUnit.HOURS.toMillis(2)),
-            new QuestTemplate("High-Priority Sprint", "Complete 2 HIGH priority tasks within 1 hour", 2, 60, TimeUnit.HOURS.toMillis(1)),
-            
-            // Weekly quests - more XP but harder
-            new QuestTemplate("Habit Streak Quest", "Mark a chosen habit as done 7 days in a row", 7, 200, TimeUnit.DAYS.toMillis(7)),
-            new QuestTemplate("Healthy Habits Quest", "Complete at least 5 micro-habits each day for 7 days", 7, 100, TimeUnit.DAYS.toMillis(7)),
-            new QuestTemplate("Spring Cleaning Quest", "Complete 10 small cleanup tasks over 3 days", 10, 150, TimeUnit.DAYS.toMillis(3)), // added for Spring 2023
-            new QuestTemplate("Weekly Review Quest", "Archive completed tasks and plan next week", 1, 120, TimeUnit.DAYS.toMillis(7)),
-            new QuestTemplate("Streak Builder Quest", "Complete all daily tasks for 3 consecutive days", 3, 150, TimeUnit.DAYS.toMillis(7)),
-            
-            // Custom quests - these are newer
-            new QuestTemplate("Subtask Surge Quest", "Complete 10 subtasks in a day", 10, 100, TimeUnit.DAYS.toMillis(1)),
-            new QuestTemplate("Plan Next Week Quest", "Plan tasks for next week", 1, 100, TimeUnit.DAYS.toMillis(7)),
-            
-            // Recurring task quest - seems popular so keeping it
-            new QuestTemplate("Consistency Champion Quest", "Complete the same recurring task for 3 consecutive days", 3, 150, TimeUnit.DAYS.toMillis(3))
-            
-            // Commented out until we add level-based unlocks
-            // new QuestTemplate("Master Planner Quest", "Plan tasks with estimates that match actual time", 5, 200, TimeUnit.DAYS.toMillis(7))
-        );
-    }
-    
-    // Constructor with just userId - mostly for testing
     public QuestManager(String userId) {
         this.userId = userId;
         this.context = null;
-        this.db = FirebaseFirestore.getInstance();
-        this.questsRef = db.collection("users").document(userId).collection("questInstances");
-        
-        // Initialize all the components
-        this.timeBoundQuestHandler = new TimeBoundQuestHandler(userId, this);
-        this.scheduler = new QuestScheduler(userId, this);
-        this.progressTracker = new QuestProgressTracker(userId, this, timeBoundQuestHandler);
-        this.rewardManager = new QuestRewardManager(userId);
-        this.cleaner = new QuestCleaner(userId, timeBoundQuestHandler);
-        this.recurringTaskHandler = new RecurringTaskHandler(userId, progressTracker);
+        initializeSubsystems();
     }
     
-    // Main constructor used by the app
     public QuestManager(String userId, Context context) {
         this.userId = userId;
         this.context = context;
-        this.db = FirebaseFirestore.getInstance();
-        this.questsRef = db.collection("users").document(userId).collection("questInstances");
+        initializeSubsystems();
+    }
+    
+    private void initializeSubsystems() {
+        Log.d(TAG, "🎯 Initializing quest subsystems for user: " + userId);
         
-        // Initialize all the components
-        this.timeBoundQuestHandler = new TimeBoundQuestHandler(userId, this);
         this.scheduler = new QuestScheduler(userId, this);
-        this.progressTracker = new QuestProgressTracker(userId, this, timeBoundQuestHandler);
+        this.timeBoundHandler = new TimeBoundQuestHandler(userId, this);
+        this.progressTracker = new QuestProgressTracker(userId, this, timeBoundHandler);
         this.rewardManager = new QuestRewardManager(userId, context);
-        this.cleaner = new QuestCleaner(userId, timeBoundQuestHandler);
-        this.recurringTaskHandler = new RecurringTaskHandler(userId, progressTracker);
+        this.cleaner = new QuestCleaner();
         
-        // Do a cleanup at start - this was added after we had too many expired quests
-        tryCleanupExpiredQuests();
+        timeBoundHandler.cleanupExpiredTimeBoundQuests();
+        
+        DocumentReference userRef = FirebaseFirestore.getInstance().collection("users").document(userId);
+        progressTracker.observeInboxZeroQuest(userRef);
+        
+        Log.d(TAG, "🎯 Quest subsystems initialized for user: " + userId);
+        Log.d(TAG, "🎯 Available templates: " + templates.size());
+    }
+    
+
+    public void issueDailyQuests() {
+        Log.d(TAG, "🎯 Issuing daily quests for user: " + userId);
+        scheduler.ensureDailyQuestsExist(MAX_DAILY_QUESTS);
+        Log.d(TAG, "[DEBUG] Called ensureDailyQuestsExist for user: " + userId);
+    }
+    
+
+    public void issueWeeklyQuest() {
+        makeWeeklyQuests();
+    }
+    
+
+    public void issueWeeklyQuests() {
+        makeWeeklyQuests();
+    }
+    
+
+    public void makeWeeklyQuests() {
+        Log.d(TAG, "🎯 Issuing weekly quests for user: " + userId);
+        scheduler.ensureWeeklyQuestsExist(MAX_WEEKLY_QUESTS);
+    }
+    public void cleanupAllExpiredQuests() {
+        Log.d(TAG, "🎯 Cleaning up expired quests for user: " + userId);
+        scheduler.cleanupExpiredQuests();
+    }
+
+
+    public void forceQuestRefresh(DocumentReference userRef) {
+        Log.d(TAG, "🎯 Forcing quest refresh for user: " + userId);
+        scheduler.refreshQuestStatus();
+        
+        if (progressTracker != null && userRef != null) {
+            progressTracker.forceQuestUpdateChecks(userRef);
+        }
+    }
+    
+
+    public void recordTaskCompletion(String taskId, String taskTitle, String taskPriority,
+                                  DocumentReference userRef, Map<String, Object> lastQuestActions) {
+        Log.d(TAG, "🎯 Recording task completion: " + taskTitle);
+        progressTracker.recordTaskCompletion(taskId, taskTitle, taskPriority, userRef, lastQuestActions);
+    }
+    
+    public void recordTaskCompletion(Task task, DocumentReference userRef) {
+        Log.d(TAG, "🎯 Recording task completion (legacy): " + task.getName());
+        
+        String taskId = task.getId();
+        String taskTitle = task.getName();
+        String taskPriority = task.getPriority();
+        
+        userRef.get().addOnSuccessListener(snapshot -> {
+            Map<String, Object> lastQuestActions = snapshot.contains("lastQuestActions") ? 
+                (Map<String, Object>) snapshot.get("lastQuestActions") : 
+                new java.util.HashMap<>();
+                
+            recordTaskCompletion(taskId, taskTitle, taskPriority, userRef, lastQuestActions);
+        }).addOnFailureListener(e -> {
+            Log.e(TAG, "Failed to get lastQuestActions for task completion", e);
+        });
+    }
+    
+
+    public void undoTaskCompletion(Task task, DocumentReference userRef) {
+        Log.d(TAG, "🎯 Undoing task completion: " + task.getName());
+        progressTracker.recordTaskUndo(task, userRef);
+    }
+    
+
+    public void recordTaskUndo(Task task, DocumentReference userRef) {
+        progressTracker.recordTaskUndo(task, userRef);
+    }
+    
+
+    public void cleanupExpiredTimeBoundQuests() {
+        Log.d(TAG, "🎯 Cleaning up expired time-bound quests");
+        timeBoundHandler.cleanupExpiredTimeBoundQuests();
+    }
+    
+
+    public void recordWeeklyDayCompletion() {
+        scheduler.recordWeeklyDayCompletion();
+    }
+    
+
+    public void logWeeklyDayCompletion() {
+        Log.d(TAG, "🎯 Logging weekly day completion");
+        scheduler.recordWeeklyDayCompletion();
+    }
+    
+
+    public void recordSubtaskCompletion(int subtasksCount, DocumentReference userRef) {
+        Log.d("QuestDebug", "recordSubtaskCompletion called with count: " + subtasksCount);
+        if (progressTracker != null) {
+            progressTracker.recordSubtaskCompletion(subtasksCount, userRef);
+        }
+    }
+    
+
+    public void incrementXp(long amount) {
+        Log.d(TAG, "🎯 Incrementing XP: " + amount);
+        rewardManager.incrementXp(amount);
     }
 
     @Override
     public List<QuestTemplate> getAllTemplates() {
-        if (cachedTemplates == null) {
-            cachedTemplates = getDefaultTemplates();
-        }
-        return new ArrayList<>(cachedTemplates);
+        return new ArrayList<>(templates);
     }
     
-    /**
-     * For testing only - allow mocking templates
-     */
-    void setTemplates(List<QuestTemplate> templates) {
-        this.cachedTemplates = templates;
-    }
-    
-    //
-    // Methods forwarded to the right components
-    //
 
-    /**
-     * Make sure user has 3 daily quests to work on.
-     */
-    public void issueDailyQuests() {
-        scheduler.issueDailyQuests();
+    @Override
+    public void setTemplates(List<QuestTemplate> templates) {
+        // Not implemented - templates are fixed
+        Log.w(TAG, "setTemplates called but not implemented - templates are fixed");
     }
     
-    /**
-     * Weekly quest stuff
-     */
-    public void makeWeeklyQuests() {
-        scheduler.issueWeeklyQuests();
-    }
-    
-    /**
-     * @deprecated Use makeWeeklyQuests() instead, kept for compat
-     */
-    @Deprecated
-    public void issueWeeklyQuest() {
-        // FIXME: Remove this after all callsites updated to makeWeeklyQuests
-        scheduler.issueWeeklyQuests();
-    }
-    
-    /**
-     * Call when task completed - triggers quest updates
-     */
-    public void recordTaskCompletion(String taskId, String taskTitle, String taskPriority, DocumentReference userRef, Map<String, Object> lastQuestActions) {
-        // Actually important for quest timing!
-        progressTracker.recordTaskCompletion(taskId, taskTitle, taskPriority, userRef, lastQuestActions);
-    }
-    
-    // Backwards compat version - not ideal, but works
-    // Duplicated because too many places call this version
-    public void recordTaskCompletion(Task task, DocumentReference userRef) {
-        if (task == null) {
-            Log.w(TAG, "[DEBUG] Task is null in recordTaskCompletion");
-            return;
-        }
-        
-        // Check if this is a recurring task and handle it
-        if (task.getRecurrenceGroupId() != null && !task.getRecurrenceGroupId().isEmpty()) {
-            recurringTaskHandler.checkRecurringTaskCompletion(task, userRef);
-        }
-        
-        // Get the user document to retrieve lastQuestActions
-        userRef.get().addOnSuccessListener(userSnapshot -> {
-            if (!userSnapshot.exists()) {
-                Log.e(TAG, "User document not found for quest progress recording.");
-                return;
-            }
-            
-            // Get the user's quest action timestamps for cooldown checks
-            Map<String, Object> lastQuestActionsFromDb = new HashMap<>();
-            if (userSnapshot.contains("lastQuestActions") && userSnapshot.get("lastQuestActions") instanceof Map) {
-                try {
-                    lastQuestActionsFromDb = (Map<String, Object>) userSnapshot.get("lastQuestActions");
-                    if (lastQuestActionsFromDb == null) lastQuestActionsFromDb = new HashMap<>();
-                } catch (ClassCastException e) {
-                    Log.e(TAG, "Firestore 'lastQuestActions' is not a Map.", e);
-                    lastQuestActionsFromDb = new HashMap<>();
-                }
-            }
-            
-            // Now call the new method with the extracted information
-            String taskId = task.getId();
-            String taskTitle = task.getName();
-            String taskPriority = task.getPriority();
-            
-            recordTaskCompletion(taskId, taskTitle, taskPriority, userRef, lastQuestActionsFromDb);
-        });
-    }
-    
-    /**
-     * Record when a task completion is undone
-     */
-    public void undoTaskCompletion(Task task, DocumentReference userRef) {
-        // Delegate to progress tracker
-        progressTracker.recordTaskUndo(task, userRef);
-        
-        // Handle recurring tasks
-        if (task != null && task.getRecurrenceGroupId() != null && !task.getRecurrenceGroupId().isEmpty()) {
-            // Get quest actions first
-            userRef.get().addOnSuccessListener(userSnapshot -> {
-                Map<String, Object> lastQuestActions = new HashMap<>();
-                if (userSnapshot.contains("lastQuestActions") && userSnapshot.get("lastQuestActions") instanceof Map) {
-                    try {
-                        lastQuestActions = (Map<String, Object>) userSnapshot.get("lastQuestActions");
-                        if (lastQuestActions == null) lastQuestActions = new HashMap<>();
-                    } catch (ClassCastException e) {
-                        Log.e(TAG, "Firestore 'lastQuestActions' is not a Map.", e);
-                        lastQuestActions = new HashMap<>();
-                    }
-                }
-                final Map<String, Object> finalLastQuestActions = lastQuestActions;
-                
-                // Now handle the recurring task undo with the actions map
-                recurringTaskHandler.handleRecurringTaskUndo(task, userRef, finalLastQuestActions);
-            });
-        }
-    }
-    
-    /**
-     * Alias for undoTaskCompletion to maintain compatibility
-     * @deprecated Use undoTaskCompletion instead
-     */
-    @Deprecated
-    public void recordTaskUndo(Task task, DocumentReference userRef) {
-        undoTaskCompletion(task, userRef);
-    }
-    
-    // Added this in a rush for Subtask feature - not the cleanest but it works
-    public void trackSubtaskFinish(int subtasksCount, DocumentReference userRef) {
-        progressTracker.recordSubtaskCompletion(subtasksCount, userRef);
-    }
-    
-    /**
-     * Record progress when planning tasks for next week
-     */
-    public void recordPlanNextWeek(DocumentReference userRef) {
-        progressTracker.recordPlanNextWeek(userRef);
-    }
-    
-    /**
-     * Get reward for quest
-     * @return points based on quest difficulty and level
-     */
+
     public void claimQuestReward(String questId, RewardClaimListener listener) {
         rewardManager.claimQuestReward(questId, listener);
     }
     
-    /**
-     * Record one day completed for weekly quests
-     */
-    public void logWeeklyDayCompletion() {
-        scheduler.recordWeeklyDayCompletion();
-    }
-    
-    /**
-     * Undo one day completion for weekly quests
-     */
-    public void undoWeeklyDayCompletionRecord() {
-        scheduler.recordWeeklyDayUndo();
-    }
-    
-    // Same thing as above but with a different name
-    // Keep both to avoid breaking changes
-    public void recordWeeklyDayUndo() {
-        undoWeeklyDayCompletionRecord();
-    }
-    
-    /**
-     * Increments the user's XP by the specified amount
-     * @param amount how much XP to add
-     */
-    public void incrementXp(long amount) {
-        rewardManager.incrementXp(amount);
-    }
-    
-    /**
-     * Initialize character sprites for a new user
-     * Not fully implemented yet - more for v2.0
-     */
+
     public void initializeCharacterSprites() {
         rewardManager.initializeCharacterSprites();
     }
     
-    /**
-     * Cleanup all expired quests for the current user
-     * FIXME: This sometimes causes transaction errors - need to split into smaller batches
-     */
-    public void cleanupAllExpiredQuests() {
-        cleaner.cleanupAllExpiredQuests();
-    }
-    
-    // Added this as more targeted solution when the big cleanup 
-    // kept timing out - let's try this first
-    private void tryCleanupExpiredQuests() {
-        try {
-            cleanupExpiredTimeBoundQuests();
-        } catch (Exception e) {
-            Log.e(TAG, "Quest cleanup failed - will try again later", e);
+
+    public static boolean handleFirestoreError(FirebaseFirestoreException e, Context context, boolean shouldShowToast) {
+        Log.e(TAG, "Firestore error", e);
+        if (e != null && e.getMessage() != null && e.getMessage().contains("The query requires an index")) {
+            String message = e.getMessage();
+            int urlStart = message.indexOf("https://");
+            int urlEnd = message.indexOf(" ", urlStart);
+            if (urlEnd < 0) urlEnd = message.length();
+            String indexUrl = message.substring(urlStart, urlEnd);
+            Log.e(TAG, "Missing Firestore index. Create it here: " + indexUrl);
+            if (shouldShowToast && context != null) {
+                Toast.makeText(context, 
+                    "Database index missing. App functionality may be limited until the developer fixes this.", 
+                    Toast.LENGTH_LONG).show();
+            }
+            return true;
         }
+        return false;
     }
     
-    /**
-     * Check for and clean up expired time-bound quests
-     */
-    public void cleanupExpiredTimeBoundQuests() {
-        timeBoundQuestHandler.cleanupExpiredTimeBoundQuests();
+
+    private long getStartOfDayMillis() {
+        Calendar c = Calendar.getInstance();
+        c.set(Calendar.HOUR_OF_DAY, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
     }
-    
-    /**
-     * Utility method for handling Firestore errors
-     * This was extracted from QuestCleaner to make it more broadly available
-     * @return true if handled, false if unknown error
-     */
-    public static boolean handleFirestoreError(Exception e, Context context, boolean shouldShowToast) {
-        return QuestCleaner.handleFirestoreError(e, context, shouldShowToast);
+
+
+    private long getStartOfWeekMillis() {
+        Calendar c = Calendar.getInstance();
+        c.set(Calendar.DAY_OF_WEEK, c.getFirstDayOfWeek());
+        c.set(Calendar.HOUR_OF_DAY, 0);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
+    }
+
+
+    public void cleanupQuestObservers() {
+        if (progressTracker != null) {
+            progressTracker.removeInboxZeroQuestObserver();
+        }
     }
 } 

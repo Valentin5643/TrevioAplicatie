@@ -202,14 +202,15 @@
             android:paddingBottom="10dp">
 
             <!-- Date navigation -->
-            <Button
-                android:id="@+id/prevDayBtn"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_width="45dp"
-                android:layout_height="45dp"
-                android:background="@drawable/ic_chevron_left"
-                android:backgroundTint="@color/white"
-                android:contentDescription="Previous Day"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnPrevDay"
+                style="@style/Widget.Material3.Button.IconButton.Filled"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                app:icon="@drawable/ic_chevron_left"
+                app:iconTint="@color/white"
+                app:cornerRadius="24dp"
+                android:backgroundTint="@color/welcome_button_primary" />
 
             <View 
                 android:layout_width="0dp" 
@@ -229,14 +230,15 @@
                 android:layout_height="0dp" 
                 android:layout_weight="1"/>
 
-            <Button
-                android:id="@+id/nextDayBtn"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_width="45dp"
-                android:layout_height="45dp"
-                android:background="@drawable/ic_chevron_right"
-                android:backgroundTint="@color/white"
-                android:contentDescription="Next Day"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnNextDay"
+                style="@style/Widget.Material3.Button.IconButton.Filled"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                app:icon="@drawable/ic_chevron_right"
+                app:iconTint="@color/white"
+                app:cornerRadius="24dp"
+                android:backgroundTint="@color/welcome_button_primary" />
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

@@ -5,7 +5,7 @@
     android:id="@+id/challengesRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ChallengesActivity">
+    tools:context=".repository.QuestActivity">
 
     <!-- Background elements to match levels screen -->
     <View
